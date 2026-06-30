@@ -35,9 +35,9 @@ def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
     return df
 
 
-def compute_champion_rolling_winrate(df: pd.DataFrame, window_days: int = 42) -> pd.DataFrame:
+def compute_champion_rolling_winrate(df: pd.DataFrame, window_days: int = 84) -> pd.DataFrame:
     """
-    Với mỗi game, tính win rate của champion đó trong 42 ngày TRƯỚC game (không include game hiện tại).
+    Với mỗi game, tính win rate của champion đó trong 84 ngày TRƯỚC game (không include game hiện tại).
     Dùng Bayesian smoothing để tránh noise khi ít data.
     """
     df = df.sort_values("date_played").copy()
@@ -70,7 +70,7 @@ def compute_champion_rolling_winrate(df: pd.DataFrame, window_days: int = 42) ->
     return pd.DataFrame(results)
 
 
-def compute_player_rolling_winrate(df: pd.DataFrame, window_days: int = 42) -> pd.DataFrame:
+def compute_player_rolling_winrate(df: pd.DataFrame, window_days: int = 84) -> pd.DataFrame:
     """
     Với mỗi game, tính:
     - player_rolling_wr: win rate gần đây của player (mọi champion)
@@ -135,6 +135,7 @@ def build_model1_features(db_url: str = DB_URL) -> pd.DataFrame:
         """Tính avg rolling wr của team trong game đó"""
         return pd.Series({
             f"{prefix}_avg_champ_wr": group["champ_rolling_wr"].mean(),
+            f"{prefix}_avg_champ_picks": group["champ_rolling_picks"].mean(),
             f"{prefix}_avg_player_wr": group["player_rolling_wr"].mean(),
             f"{prefix}_avg_player_champ_wr": group["player_champ_wr"].mean(),
             f"{prefix}_total_champ_experience": group["player_champ_games"].sum(),
