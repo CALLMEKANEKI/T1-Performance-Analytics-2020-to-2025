@@ -90,20 +90,21 @@ def run_etl(excel_path: str, db_url: str):
 
         log.info("Seeding champions...")
         for _, row in df_champions.iterrows():
-            get_or_create(conn, "champions", "id_champion", "name", str(row.get("name", row.iloc[0])))
+            get_or_create(conn, "champions", "id_champion", "name", str(row["Name"]).strip())
 
         log.info("Seeding teams...")
         t1_id = get_or_create(conn, "teams", "id_team", "name", "T1")
         for _, row in df_teams.iterrows():
-            name = str(row.get("name", row.iloc[0]))
+            name = str(row["Name"]).strip()
             get_or_create(conn, "teams", "id_team", "name", name)
 
         log.info("Seeding players...")
         for _, row in df_players.iterrows():
-            ingame = str(row.get("ingame_name", row.iloc[0]))
+            ingame = str(row["Nickname"]).strip()
             get_or_create(conn, "players", "id_player", "ingame_name", ingame, {
-                "position": str(row.get("position", "")) or None,
-                "team_id": t1_id   # T1 players — opponent players sẽ insert on-the-fly
+                "full_name": str(row["Name"]).strip(),
+                "position": str(row["Role"]).strip() if pd.notna(row["Role"]) else None,
+                "team_id": t1_id
             })
 
         # ── 2. Process main sheet row by row ──────────────────────────────────
