@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine
 
-from app.pipeline.features import DB_URL, load_raw_data
-from app.pipeline.model2_meta_shift import (
+from backend.app.pipeline.features import DB_URL, load_raw_data
+from backend.app.pipeline.model2_meta_shift import (
     load_ban_data,
     build_champion_timeseries,
     detect_meta_shifts,
