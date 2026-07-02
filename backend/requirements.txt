@@ -12,3 +12,4 @@ anthropic==0.34.2
 python-dotenv==1.0.1
 numpy==1.26.4
 pyarrow==14.0.0
+flask_cors==6.0.5

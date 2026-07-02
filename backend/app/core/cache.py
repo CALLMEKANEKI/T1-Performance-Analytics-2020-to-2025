@@ -9,15 +9,15 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine
 
-from backend.app.pipeline.features import DB_URL, load_raw_data
-from backend.app.pipeline.model2_meta_shift import (
+from app.pipeline.features import DB_URL, load_raw_data
+from app.pipeline.model2_meta_shift import (
     load_ban_data,
     build_champion_timeseries,
     detect_meta_shifts,
     merge_consecutive_events,
 )
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 MODEL1_PATH = BACKEND_DIR / "data" / "model1_lgbm.pkl"
 
 
@@ -38,7 +38,11 @@ class AppCache:
             "SELECT id_champion as champion_id, name, image_url FROM champions",
             engine,
         )
-
+        # CHÈN ĐOẠN NÀY ĐỂ DEBUG:
+        print(f"--- ĐANG KIỂM TRA ĐƯỜNG DẪN MODEL 1 ---")
+        print(f"Đường dẫn tuyệt đối: {MODEL1_PATH.resolve()}")
+        print(f"File có tồn tại không?: {MODEL1_PATH.exists()}")
+        print(f"----------------------------------------")
         # Model 1 artifact (model đã train sẵn, load từ pickle)
         if MODEL1_PATH.exists():
             with open(MODEL1_PATH, "rb") as f:

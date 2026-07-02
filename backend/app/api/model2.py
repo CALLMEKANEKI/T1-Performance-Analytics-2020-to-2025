@@ -43,7 +43,7 @@ def get_shift_events(
 
     for col in ["start_bucket", "end_bucket", "peak_bucket"]:
         df[col] = df[col].astype(str)
-
+    df = df.fillna(0)
     return df.to_dict(orient="records")
 
 

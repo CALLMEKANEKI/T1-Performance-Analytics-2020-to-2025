@@ -1,6 +1,6 @@
 """
 Model 2: Meta shift time series theo champion, bucket 2 tuần.
-Chạy từ thư mục backend: python app/pipeline/model2_meta_shift.py
+Chạy từ thư mục backend: python -m app/pipeline/model2_meta_shift.py
 """
 
 from pathlib import Path
@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 
-from features import DB_URL, load_raw_data
+from app.pipeline.features import DB_URL, load_raw_data
 
 BUCKET_DAYS = 14
 BACKEND_DIR = Path(__file__).resolve().parents[2]

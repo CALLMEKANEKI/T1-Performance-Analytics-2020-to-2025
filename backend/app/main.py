@@ -2,17 +2,27 @@
 FastAPI app: T1 Analytics
 - Model 1 (win prediction) và Model 2 (meta shift) đều cache trong RAM lúc startup
 - Endpoint /api/refresh-cache để rebuild cache không cần restart server
+- Static files: ảnh champion + player serve từ /static
 """
 
+from flask import Flask
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app, origins=["http://localhost:5173"])
+
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.cache import AppCache
-from app.api import model1, model2, champions
+from app.api import model1, model2, champions, matches, stats
 
 cache = AppCache()
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 @asynccontextmanager
@@ -32,12 +42,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 # Đưa cache vào app.state để các router truy cập được
 app.state.cache = cache
 
 app.include_router(model1.router, prefix="/api/model1", tags=["model1"])
 app.include_router(model2.router, prefix="/api/model2", tags=["model2"])
 app.include_router(champions.router, prefix="/api", tags=["champions"])
+app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
+app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 
 
 @app.get("/")

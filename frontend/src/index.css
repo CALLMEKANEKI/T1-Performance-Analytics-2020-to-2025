@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle scan-line texture cho header — gợi gaming HUD, dùng tiết kiệm */
+.hud-grid {
+  background-image:
+    linear-gradient(rgba(245, 243, 238, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 243, 238, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a38;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4a;
+}

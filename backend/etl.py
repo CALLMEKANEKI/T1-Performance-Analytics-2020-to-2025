@@ -223,6 +223,8 @@ def run_etl(excel_path: str, db_url: str):
 
             # Bans
             for ban_order, champ_name in enumerate(bans_t1, 1):
+                if champ_name == "None" or not champ_name:
+                    continue  # T1 không dùng hết lượt ban
                 champ_id = get_or_create(conn, "champions", "id_champion", "name", champ_name)
                 conn.execute(
                     text("""
@@ -233,6 +235,8 @@ def run_etl(excel_path: str, db_url: str):
                 )
 
             for ban_order, champ_name in enumerate(bans_opp, 1):
+                if champ_name == "None" or not champ_name:
+                    continue  #không dùng hết lượt ban
                 champ_id = get_or_create(conn, "champions", "id_champion", "name", champ_name)
                 conn.execute(
                     text("""
