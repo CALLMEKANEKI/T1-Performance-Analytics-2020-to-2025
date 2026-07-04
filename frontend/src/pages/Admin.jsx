@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Upload, Search, ChevronLeft, ChevronRight, Check, X, Edit2, Trash2, Plus } from "lucide-react";
-import clsx from "clsx";
+import { Upload, Search, ChevronLeft, ChevronRight, Check, X, Edit2, Trash2, Plus, Download } from "lucide-react";import clsx from "clsx";
 import { api } from "../lib/api";
 import Panel from "../components/Panel";
 
@@ -140,6 +139,13 @@ function ImportTab() {
       <div>
         <h2 className="font-display font-semibold text-base text-text mb-1">Import Excel</h2>
         <p className="text-xs text-textMuted">Upload file Excel đúng format (sheet: LolMatchHistory_2020-2025). ETL dùng get_or_create — data đã có sẽ không bị duplicate.</p>
+        <a
+          href="http://localhost:8000/api/admin/import/template"
+          download
+          className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline mt-2"
+        >
+          <Download size={13} /> Tải file template mẫu
+        </a>
       </div>
       <div
         onClick={() => fileRef.current?.click()}

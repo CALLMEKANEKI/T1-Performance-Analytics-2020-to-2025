@@ -20,6 +20,7 @@ from sqlalchemy import create_engine, text
 from pydantic import BaseModel
 from typing import Optional
 from app.pipeline.features import DB_URL
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -330,3 +331,29 @@ def delete_tournament(tournament_id: int):
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM tournaments WHERE id_tournament = :id"), {"id": tournament_id})
     return {"status": "deleted", "id": tournament_id}
+
+@router.get("/import/template")
+def download_template():
+    """Trả về file Excel mẫu đúng format để user điền data rồi import."""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        # Sheet chính
+        pd.DataFrame(columns=[
+            "Index", "Year", "Match Date", "Event Name", "Patch",
+            "Result", "Side", "T1 Players", "Opponent Team",
+            "Opponent Players", "Bans Team 1", "Bans Team 2",
+            "Team 1 Champs", "Team 2 Champs", "Link"
+        ]).to_excel(writer, sheet_name="LolMatchHistory_2020-2025", index=False)
+
+        # Sheet phụ
+        pd.DataFrame(columns=["Index", "Icon", "Name"]).to_excel(writer, sheet_name="Champion", index=False)
+        pd.DataFrame(columns=["Index", "Avatar", "Name", "Nickname", "Role"]).to_excel(writer, sheet_name="Player", index=False)
+        pd.DataFrame(columns=["Index", "Icon", "Name", "Region"]).to_excel(writer, sheet_name="Team", index=False)
+        pd.DataFrame(columns=["Index", "Name", "Date", "Is T1 winner", "Winner", "Region"]).to_excel(writer, sheet_name="Tournament", index=False)
+
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=T1_import_template.xlsx"}
+    )
