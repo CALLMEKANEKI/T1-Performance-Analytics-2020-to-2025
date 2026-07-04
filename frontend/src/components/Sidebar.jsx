@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, TrendingUp, Brain, History, Users } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Brain, History, Users, Settings } from "lucide-react";
 import clsx from "clsx";
 
 const NAV_ITEMS = [
@@ -8,6 +8,10 @@ const NAV_ITEMS = [
   { to: "/matches", label: "Match History", icon: History },
   { to: "/meta-shifts", label: "Meta Shifts", icon: TrendingUp },
   { to: "/win-prediction", label: "Win Prediction", icon: Brain },
+];
+
+const ADMIN_ITEMS = [
+  { to: "/admin", label: "Admin", icon: Settings },
 ];
 
 export default function Sidebar() {
@@ -41,8 +45,25 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-5 py-4 border-t border-border">
-        <div className="text-[11px] text-textMuted leading-relaxed">
+      <div className="px-3 pb-4 border-t border-border pt-3 space-y-1">
+        {ADMIN_ITEMS.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              clsx(
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px]"
+                  : "text-textMuted hover:text-text hover:bg-surfaceHover"
+              )
+            }
+          >
+            <Icon size={16} strokeWidth={2} />
+            {label}
+          </NavLink>
+        ))}
+        <div className="text-[11px] text-textMuted px-3 pt-2 leading-relaxed">
           ML-powered match analytics.
           <br />
           903 games · 5 seasons.

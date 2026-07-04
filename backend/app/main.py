@@ -5,12 +5,6 @@ FastAPI app: T1 Analytics
 - Static files: ảnh champion + player serve từ /static
 """
 
-from flask import Flask
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app, origins=["http://localhost:5173"])
-
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.cache import AppCache
-from app.api import model1, model2, champions, matches, stats
+from app.api import model1, model2, champions, matches, stats, admin
 
 cache = AppCache()
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -52,6 +46,7 @@ app.include_router(model2.router, prefix="/api/model2", tags=["model2"])
 app.include_router(champions.router, prefix="/api", tags=["champions"])
 app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 
 @app.get("/")

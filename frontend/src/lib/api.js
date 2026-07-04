@@ -39,6 +39,41 @@ export const api = {
   statsBySide: () => get("/stats/winrate-by-side"),
   playerWinrates: () => get("/stats/player-winrates"),
   playerDetail: (playerId) => get(`/stats/player/${playerId}`),
+
+  // Admin
+  admin: {
+    champions: ({ search = "", page = 1, pageSize = 30 } = {}) =>
+      get(`/admin/champions?search=${search}&page=${page}&page_size=${pageSize}`),
+    players: ({ search = "", page = 1, pageSize = 30 } = {}) =>
+      get(`/admin/players?search=${search}&page=${page}&page_size=${pageSize}`),
+    teams: ({ search = "", page = 1, pageSize = 30 } = {}) =>
+      get(`/admin/teams?search=${search}&page=${page}&page_size=${pageSize}`),
+    tournaments: ({ search = "", page = 1, pageSize = 30 } = {}) =>
+      get(`/admin/tournaments?search=${search}&page=${page}&page_size=${pageSize}`),
+    updateChampion: (id, body) =>
+      fetch(`${BASE_URL}/admin/champions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    updatePlayer: (id, body) =>
+      fetch(`${BASE_URL}/admin/players/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }).then((r) => r.json()),
+    previewImport: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return fetch(`${BASE_URL}/admin/import/preview`, { method: "POST", body: form }).then((r) => r.json());
+    },
+    import: (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      return fetch(`${BASE_URL}/admin/import`, { method: "POST", body: form }).then((r) => r.json());
+    },
+  },
 };
 
 export const STATIC_BASE = "http://localhost:8000";
+
