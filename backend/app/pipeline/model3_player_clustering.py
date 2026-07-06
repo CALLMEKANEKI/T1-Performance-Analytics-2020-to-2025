@@ -21,7 +21,11 @@ DEFAULT_SCALER = "robust"
 DEFAULT_FEATURE_SET = "base_years_champs"
 
 
-def build_player_feature_matrix(df: pd.DataFrame, min_games: int = DEFAULT_MIN_GAMES) -> tuple[pd.DataFrame, list[str]]:
+def build_player_feature_matrix(
+    df: pd.DataFrame,
+    min_games: int = DEFAULT_MIN_GAMES,
+    feature_set: str = DEFAULT_FEATURE_SET,
+) -> tuple[pd.DataFrame, list[str]]:
     """Xây dựng feature matrix cho từng player T1."""
     t1_df = df[df["team_id"] == 1].copy()
     if t1_df.empty:
@@ -168,27 +172,37 @@ def build_player_feature_matrix(df: pd.DataFrame, min_games: int = DEFAULT_MIN_G
         raise ValueError("No players met the minimum game requirement")
 
     feature_df = pd.DataFrame(records)
-    feature_cols = [
+    base_feature_cols = [
         "overall_winrate",
         "total_games",
         "winrate_blue",
         "winrate_red",
         *year_cols,
         *[f"champ_wr_rank{idx}" for idx in range(1, 11)],
-        *[f"pct_{type_name}" for type_name in champion_type_names],
-        "hhi_top20",
-        "pos_TOP",
-        "pos_JUNGLER",
-        "pos_MID",
-        "pos_ADC",
-        "pos_SUPPORT",
-        "pos_BOT",
         "career_peak_wr",
         "career_trend",
         "is_active_2025",
         "champ_pool_size",
         "avg_games_per_champ",
     ]
+
+    if feature_set == "base_years_champs":
+        feature_cols = base_feature_cols
+    elif feature_set == "full":
+        feature_cols = [
+            *base_feature_cols,
+            *[f"pct_{type_name}" for type_name in champion_type_names],
+            "hhi_top20",
+            "pos_TOP",
+            "pos_JUNGLER",
+            "pos_MID",
+            "pos_ADC",
+            "pos_SUPPORT",
+            "pos_BOT",
+        ]
+    else:
+        raise ValueError(f"Unsupported feature set: {feature_set}")
+
     feature_df = feature_df[["player_id", "player_name", *feature_cols]]
     return feature_df, feature_cols
 
@@ -270,6 +284,12 @@ def main() -> None:
     parser.add_argument("--db-url", default=DB_URL, help="Database URL")
     parser.add_argument("--scaler", choices=["standard", "robust", "minmax"], default=DEFAULT_SCALER, help="Phương pháp scaling")
     parser.add_argument("--pca-components", type=int, default=DEFAULT_PCA_COMPONENTS, help="Số thành phần PCA")
+    parser.add_argument(
+        "--feature-set",
+        choices=["base_years_champs", "full"],
+        default=DEFAULT_FEATURE_SET,
+        help="Feature set dùng cho clustering",
+    )
     args = parser.parse_args()
 
     print("Đang tải dữ liệu từ database...")
@@ -277,8 +297,13 @@ def main() -> None:
     print(f"Đã load {len(df)} rows")
 
     print("Đang xây dựng feature matrix...")
-    feature_df, feature_cols = build_player_feature_matrix(df, min_games=args.min_games)
+    feature_df, feature_cols = build_player_feature_matrix(
+        df,
+        min_games=args.min_games,
+        feature_set=args.feature_set,
+    )
     print(f"Số player sau lọc: {len(feature_df)}")
+    print(f"Feature set: {args.feature_set}")
     print("Feature cols:")
     print(feature_cols)
 
