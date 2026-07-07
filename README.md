@@ -1,135 +1,193 @@
 # T1 Performance Analytics (2020–2025)
 
-ML-powered analytics pipeline phân tích 903 trận đấu của T1 (League of Legends, LCK) từ 2020 đến 2025 — kết hợp draft prediction, player form tracking, và meta shift detection.
+Dự án phân tích dữ liệu trận đấu của T1 từ năm 2020 đến 2025 bằng pipeline dữ liệu, mô hình học máy và dashboard trực quan. Mục tiêu không chỉ là dự đoán kết quả, mà còn giúp khám phá xu hướng meta, player form, champion synergy và các thay đổi chiến thuật theo thời gian.
 
 ## Tổng quan
 
-Dự án này không chỉ build model, mà tập trung vào **việc đặt đúng câu hỏi nghiên cứu và đọc đúng kết quả** — kể cả khi kết quả là "model này không nên được dùng để predict outcome."
+Dự án hiện có đầy đủ stack từ ETL, backend API đến frontend dashboard:
 
-Stack: PostgreSQL (Docker) · Python (Pandas, LightGBM, XGBoost, SHAP) · FastAPI · React (đang phát triển)
+- Backend: Python + FastAPI + SQLAlchemy + PostgreSQL
+- Frontend: React + Vite + Tailwind CSS + Recharts
+- Data pipeline: ETL từ CSV/Excel vào PostgreSQL, feature engineering, model training và clustering
 
----
-
-## Data
-
-- **Nguồn**: Match history thủ công thu thập, 2020–2025, chỉ các trận T1 tham gia (không phải toàn bộ LCK)
-- **Quy mô**: 903 games, 362 series, 338 players, 334 champions, 80 patches
-- **Schema**: Normalized 9 bảng (tournaments → series → games → game_teams → game_players, bans riêng)
+Stack hiện tại: PostgreSQL (Docker) · Python (Pandas, LightGBM, XGBoost, SHAP) · FastAPI · React + Vite
 
 ---
 
-## Model 1: Win Prediction from Draft + Player Form
+## Dữ liệu
 
-### Hypothesis
-Liệu draft (champion pick/ban), meta context (rolling win rate theo patch), và player form (rolling performance) có đủ để predict T1 thắng/thua?
-
-### Approach
-- Features: 314 cols — champion one-hot encoding, side, patch, rolling win rate (84-day window, Bayesian smoothing α=3) cho cả champion và player, player-champion mastery
-- Model: LightGBM + XGBoost, evaluate bằng `TimeSeriesSplit` (5 folds) — không dùng random split vì data có temporal dependency
-- Explainability: SHAP values để hiểu feature nào đóng góp nhiều nhất
-
-### Kết quả
-
-| Metric | LightGBM | XGBoost | Naive Baseline (luôn đoán T1 thắng) |
-|---|---|---|---|
-| AUC (avg 5-fold) | 0.533 | 0.523 | 0.50 |
-| Accuracy (avg 5-fold) | 55.7% | 54.7% | **64.45%** |
-
-**Model thua naive baseline.** Đây là kết luận, không phải lỗi.
-
-### Phân tích nguyên nhân
-
-1. **Fold 1 (giai đoạn 2020-2021) sụp mạnh nhất** (AUC ~0.33) — trùng với giai đoạn SKT → T1 rebrand, roster thay đổi liên tục, khiến `player_rolling_wr` chưa ổn định.
-2. **SHAP top features** đều là rolling stats (`avg_player_wr`, `avg_champ_wr`, `side`) — model đã học đúng signal có sẵn, nhưng signal đó không đủ mạnh.
-3. **Kết luận domain**: Esports outcome bị chi phối bởi micro-factors (individual mechanical skill, real-time decision making, draft order cụ thể) mà draft-level aggregation không capture được. Một model đạt AUC cao từ draft alone sẽ đáng nghi hơn là đáng tin.
-
-### Giá trị của finding này
-Thay vì optimize tiếp để "ép" accuracy lên, dự án dừng lại và chuyển hướng phân tích sang nơi data thực sự phù hợp — đó là lý do Model 2 ra đời.
+- Nguồn: lịch sử trận đấu T1 từ 2020–2025
+- Quy mô ước tính: 903 trận, 362 series, 338 players, 334 champions, 80 patches
+- Schema: chuẩn hóa theo chuỗi tournaments → series → games → game_teams → game_players, kèm bảng bans và champion metadata
+- Lưu ý: roster player được lấy theo bảng players với `team_id = 1` để đảm bảo dashboard hiển thị đúng danh sách T1 hiện tại
 
 ---
 
-## Model 2: Meta Shift Detection
+## Tính năng hiện có
 
-### Hypothesis
-Thay vì predict outcome, có thể detect được khi nào 1 champion trải qua "meta shift" (tăng/giảm đột biến về sức mạnh hoặc độ phổ biến) hay không?
+### 1. Overview dashboard
+- Win rate theo patch
+- Win rate theo giải đấu/tournament
+- Win rate theo side (Blue/Red)
+- Tổng quan thống kê chung về T1
 
-### Approach
-- Time series: mỗi champion × bucket 2 tuần → `picks`, `bans`, `win_rate`, `presence_rate` (= (picks+bans) / tổng game×2)
-- Anomaly detection: composite Z-score kết hợp cả win_rate và presence_rate so với rolling baseline 12 tuần trước
-  ```
-  composite_score = sqrt(z_winrate² + z_presence²)
-  ```
-- Volume filter: loại bỏ false positive từ low-sample noise (yêu cầu ≥5 picks+bans trong bucket hiện tại, ≥15 trong baseline)
-- Event merging: gộp các bucket liên tiếp thành 1 event để tránh đếm trùng
+### 2. Match History
+- Xem lịch sử trận đấu chi tiết
+- Hiển thị lineup, bans, picks và kết quả từng game
 
-### Kết quả
-- **5,178** champion-bucket data points → **302** raw shift events (sau volume filter) → **254** merged events
-- Top finding: **Renekton** (2024-07), win rate 75%, presence 31%, kéo dài 2 bucket liên tiếp (4 tuần) — pattern rõ ràng của 1 buff/meta change
-- **Senna** xuất hiện liên tiếp 3 bucket (6 tuần, cùng giai đoạn 2024-07) — gợi ý 1 patch lớn ảnh hưởng nhiều champion support cùng lúc
+### 3. Player Dashboard
+- Danh sách player thuộc roster T1
+- Thống kê win rate, tổng số trận, champion pool
+- Biểu đồ win rate theo năm
+- Player career clustering (PCA + KMeans)
 
-### Bài học kỹ thuật quan trọng
-Lần đầu chạy không có volume filter, top events toàn là noise (composite_score 30-48 nhưng chỉ từ 1-2 picks). Đây là minh chứng cho lý do tại sao **domain knowledge + sanity check kết quả quan trọng hơn việc tin tưởng tuyệt đối vào con số thống kê.**
+### 4. Meta Shifts
+- Phát hiện các champion trải qua meta shift theo thời gian
+- Biểu đồ time series và events
+
+### 5. Synergy Network
+- Phân tích cặp champion có synergy/anti-synergy
+- Hỗ trợ lọc theo năm, số trận tối thiểu và champion cụ thể
+
+### 6. Win Prediction
+- Thử nghiệm mô hình dự đoán kết quả dựa trên draft, player form và meta context
+- Có thể dùng để nghiên cứu thay vì phục vụ production prediction
+
+### 7. Admin panel
+- Quản lý champions, players, teams, tournaments
+- Import dữ liệu và xem trước trước khi ghi vào DB
+
+---
+
+## Mô hình và nghiên cứu
+
+### Model 1: Win Prediction from Draft + Player Form
+
+#### Hypothesis
+Liệu draft, meta context và player form có đủ để dự đoán kết quả T1 thắng/thua?
+
+#### Approach
+- Features: champion one-hot, side, patch, rolling win rate cho player/champion, player-champion mastery
+- Model: LightGBM + XGBoost
+- Evaluation: TimeSeriesSplit thay vì random split để tránh data leakage
+- Explainability: SHAP values
+
+#### Kết quả
+- Model không vượt qua naive baseline ở mức độ đáng tin cậy
+- Đây là một kết quả nghiên cứu hợp lệ, không phải lỗi kỹ thuật
+
+### Model 2: Meta Shift Detection
+- Dùng time-series theo bucket 2 tuần cho champion
+- Phát hiện đột biến về win rate và presence rate
+- Vận dụng volume filter để giảm false positive
+
+### Model 3: Player Clustering
+- Dùng PCA + KMeans để nhóm player theo đặc điểm career pattern
+- Trực quan hóa bằng scatter plot trên dashboard
+
+### Model 4: Champion Synergy Network
+- Tính toán cặp champion có synergy/anti-synergy theo thời gian
 
 ---
 
 ## Kiến trúc kỹ thuật
 
-```
+```text
 PostgreSQL (Docker)
     ↓ SQLAlchemy
-ETL pipeline (etl.py) — parse Excel, normalize, insert
+ETL pipeline (etl.py / CSV import)
     ↓
-Feature engineering (Pandas) — rolling window, Bayesian smoothing
+Feature engineering + model training
     ↓
-Model training (LightGBM/XGBoost + SHAP) | Anomaly detection (Z-score)
+FastAPI backend
     ↓
-FastAPI — cache layer (load 1 lần lúc startup, refresh qua endpoint)
-    ↓
-React dashboard (đang phát triển)
+React + Vite frontend dashboard
 ```
 
-### API Endpoints
+### API chính
 
-```
-GET  /api/champions
-GET  /api/model1/info
-GET  /api/model1/shap-importance
-GET  /api/model2/timeseries/{champion_id}
-GET  /api/model2/shift-events
-GET  /api/model2/top-presence
-POST /api/refresh-cache
+```text
+GET /api/champions
+GET /api/stats/winrate-by-patch
+GET /api/stats/winrate-by-tournament
+GET /api/stats/winrate-by-side
+GET /api/stats/player-winrates
+GET /api/stats/player/{player_id}
+GET /api/stats/player-clusters
+GET /api/stats/synergy
+GET /api/stats/synergy/top-pairs
+GET /api/matches
+GET /api/matches/{series_id}
+GET /api/matches/game/{game_id}
 ```
 
 ---
 
-## Chạy thử local
+## Chạy local
+
+### 1. Khởi động database
 
 ```bash
 docker compose up postgres -d
-python backend/etl.py --file data/csv/T1MatchHistory_2020-2025.xlsx --db-url postgresql://t1_user:t1_password@localhost:5433/t1_analytics
+```
 
+### 2. Cài đặt backend
+
+```bash
 cd backend
-python app/pipeline/features.py
-python app/pipeline/train_model1.py
-python app/pipeline/model2_meta_shift.py
+pip install -r requirements.txt
+```
 
+### 3. Chạy ETL / tạo dữ liệu
+
+```bash
+python app/etl.py
+# hoặc nếu dùng script riêng, chạy các pipeline feature/model tương ứng
+```
+
+### 4. Chạy backend
+
+```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
+### 5. Chạy frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend chạy tại `http://localhost:5173`, backend tại `http://localhost:8000`.
+
 ---
 
-## Những gì học được
+## Chạy bằng Docker Compose
 
-- **Negative result là kết quả hợp lệ** — biết tại sao model không hoạt động quan trọng hơn là ép nó hoạt động.
-- **TimeSeriesSplit thay vì random split** khi data có temporal dependency, nếu không sẽ leak thông tin tương lai vào quá khứ.
-- **Volume threshold trong anomaly detection** — Z-score trên sample nhỏ luôn cho kết quả cực đoan giả tạo.
-- **Schema mismatch debugging thực tế** — cột tên sai (`name` vs `Name`) silent fail và insert sai dữ liệu, chỉ phát hiện qua cross-checking số liệu ở nhiều bước khác nhau, không phải qua code review.
+```bash
+docker compose up --build
+```
+
+Điều này sẽ khởi động postgres, backend và frontend cùng lúc.
+
+---
+
+## Những bài học chính
+
+- Negative result vẫn là kết quả nghiên cứu hợp lệ
+- TimeSeriesSplit quan trọng khi dữ liệu có dependency theo thời gian
+- Volume threshold giúp giảm false positive trong anomaly detection
+- Debug schema mismatch là phần không thể thiếu trong pipeline dữ liệu thực tế
 
 ---
 
 ## Roadmap
 
-- [ ] React dashboard hiển thị time series + shift events
-- [ ] Text-to-SQL agent (natural language query vào database)
-- [ ] Player-level meta shift detection (mở rộng từ champion-level)
-- [ ] Deploy (Railway/Render)
+- [x] Dashboard overview và player analytics
+- [x] Match history và champion synergy
+- [x] Admin panel cơ bản
+- [ ] Tối ưu UI/UX và thêm filter nâng cao
+- [ ] Thêm text-to-SQL hoặc natural language query
+- [ ] Mở rộng phân tích player-level meta shift
+- [ ] Deploy production

@@ -5,6 +5,7 @@ import Players from "./pages/Players";
 import MatchHistory from "./pages/MatchHistory";
 import MetaShifts from "./pages/MetaShifts";
 import WinPrediction from "./pages/WinPrediction";
+import Synergy from "./pages/Synergy";
 import Admin from "./pages/Admin";
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/matches" element={<MatchHistory />} />
           <Route path="/meta-shifts" element={<MetaShifts />} />
           <Route path="/win-prediction" element={<WinPrediction />} />
+          <Route path="/synergy" element={<Synergy />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>

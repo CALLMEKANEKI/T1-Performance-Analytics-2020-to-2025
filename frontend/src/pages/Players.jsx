@@ -5,6 +5,7 @@ import StatCard from "../components/StatCard";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Legend,
+  ScatterChart, Scatter, ZAxis, Cell,
 } from "recharts";
 
 const POSITION_ORDER = ["TOP", "JUNGLER", "MID", "ADC", "BOT", "SUPPORT"];
@@ -21,6 +22,38 @@ const TOOLTIP_STYLE = {
   cursor: { fill: "rgba(255,255,255,0.04)" },
 };
 
+function formatPercent(value, digits = 1) {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
+// Màu theo cluster label
+const CLUSTER_COLORS = {
+  "Core Roster": "#E0144C",
+  "Veteran":     "#34D399",
+  "Outlier":     "#7C7C8A",
+};
+
+// Tooltip tuỳ chỉnh cho scatter plot
+function ClusterTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div style={{
+      background: "#1A1A24", border: "1px solid #2A2A38",
+      borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#F5F3EE",
+    }}>
+      <div className="font-semibold text-text">{d.player_name}</div>
+      <div className="text-textMuted mt-0.5">{d.cluster_label}</div>
+      <div className="font-mono mt-1">
+        WR: {d.overall_winrate != null ? (d.overall_winrate * 100).toFixed(1) + "%" : "—"}
+        &nbsp;·&nbsp;{d.total_games} games
+      </div>
+    </div>
+  );
+}
+
 export default function Players() {
   const [players, setPlayers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -28,6 +61,8 @@ export default function Players() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [champLimit, setChampLimit] = useState(20);
+  const [clusters, setClusters] = useState([]);
+  const [loadingClusters, setLoadingClusters] = useState(true);
 
   useEffect(() => {
     api.playerWinrates()
@@ -43,6 +78,14 @@ export default function Players() {
         if (faker) setSelected(faker);
       })
       .finally(() => setLoadingList(false));
+  }, []);
+
+  // Load cluster data khi mount
+  useEffect(() => {
+    api.playerClusters()
+      .then(setClusters)
+      .catch(() => setClusters([]))
+      .finally(() => setLoadingClusters(false));
   }, []);
 
   useEffect(() => {
@@ -111,7 +154,7 @@ export default function Players() {
                     <div className="text-[11px] text-textMuted">{p.position ?? "—"}</div>
                   </div>
                   <span className="font-mono text-xs shrink-0">
-                    {(p.win_rate * 100).toFixed(0)}%
+                    {formatPercent(p.win_rate, 0)}
                   </span>
                 </button>
               ))}
@@ -155,7 +198,7 @@ export default function Players() {
                 <StatCard label="Tổng số trận" value={selected.total_games} sublabel="Toàn bộ 2020–2025" />
                 <StatCard
                   label="Win rate"
-                  value={`${(selected.win_rate * 100).toFixed(1)}%`}
+                  value={formatPercent(selected.win_rate)}
                   sublabel={`${selected.wins} thắng / ${selected.total_games - selected.wins} thua`}
                   accent
                 />
@@ -291,6 +334,66 @@ export default function Players() {
           )}
         </div>
       </div>
+
+      {/* Player Career Clustering — PCA scatter plot */}
+      <Panel
+        title="Player Career Clustering"
+        subtitle="KMeans K=3 trên PCA 2D — mỗi điểm là 1 player T1 (2020–2025)"
+      >
+        {loadingClusters ? (
+          <div className="h-72 bg-surfaceHover rounded animate-pulse" />
+        ) : clusters.length === 0 ? (
+          <div className="py-16 text-center text-textMuted text-sm">
+            Chưa có dữ liệu clustering. Chạy model3_player_clustering.py trước.
+          </div>
+        ) : (
+          <>
+            {/* Legend */}
+            <div className="flex items-center gap-6 mb-4">
+              {Object.entries(CLUSTER_COLORS).map(([label, color]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full inline-block" style={{ background: color }} />
+                  <span className="text-xs text-textMuted">{label}</span>
+                </div>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={320}>
+              <ScatterChart margin={{ top: 8, right: 24, bottom: 8, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" />
+                <XAxis
+                  dataKey="PC1"
+                  type="number"
+                  name="PC1"
+                  tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#2A2A38" }}
+                  label={{ value: "PC1", position: "insideBottomRight", offset: -4, fontSize: 10, fill: "#7C7C8A" }}
+                />
+                <YAxis
+                  dataKey="PC2"
+                  type="number"
+                  name="PC2"
+                  tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "#2A2A38" }}
+                  label={{ value: "PC2", angle: -90, position: "insideLeft", offset: 8, fontSize: 10, fill: "#7C7C8A" }}
+                />
+                <ZAxis range={[60, 60]} />
+                <Tooltip content={<ClusterTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "#2A2A38" }} />
+                <Scatter data={clusters} isAnimationActive={false}>
+                  {clusters.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={CLUSTER_COLORS[entry.cluster_label] ?? "#7C7C8A"}
+                      fillOpacity={0.85}
+                    />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </>
+        )}
+      </Panel>
     </div>
   );
 }

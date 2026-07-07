@@ -1,0 +1,5 @@
+# Pyrefly configuration
+# Docs: https://pyrefly.org/en/stable/configuration/
+
+# Chỉ định Python interpreter — dùng venv thay vì system Python
+python_interpreter = "c:\\GitHub Project\\T1 Performance Analytics — 2020 to 2025\\venv\\Scripts\\python.exe"

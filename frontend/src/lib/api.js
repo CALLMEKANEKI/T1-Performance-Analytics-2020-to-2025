@@ -40,6 +40,20 @@ export const api = {
   playerWinrates: () => get("/stats/player-winrates"),
   playerDetail: (playerId) => get(`/stats/player/${playerId}`),
 
+  // Model 3: Player clustering
+  playerClusters: () => get("/stats/player-clusters"),
+
+  // Model 4: Champion synergy network
+  synergy: ({ year, minGames = 5, champion } = {}) => {
+    const params = new URLSearchParams();
+    if (year) params.set("year", year);
+    params.set("min_games", minGames);
+    if (champion) params.set("champion", champion);
+    return get(`/stats/synergy?${params.toString()}`);
+  },
+  synergyTopPairs: ({ limit = 20, mode = "synergy" } = {}) =>
+    get(`/stats/synergy/top-pairs?limit=${limit}&mode=${mode}`),
+
   // Admin
   admin: {
     champions: ({ search = "", page = 1, pageSize = 30 } = {}) =>

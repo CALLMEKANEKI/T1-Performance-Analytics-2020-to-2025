@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, TrendingUp, Brain, History, Users, Settings } from "lucide-react";
+import { LayoutDashboard, TrendingUp, Brain, History, Users, Settings, Network } from "lucide-react";
 import clsx from "clsx";
 
 const NAV_ITEMS = [
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/matches", label: "Match History", icon: History },
   { to: "/meta-shifts", label: "Meta Shifts", icon: TrendingUp },
   { to: "/win-prediction", label: "Win Prediction", icon: Brain },
+  { to: "/synergy", label: "Synergy Network", icon: Network },
 ];
 
 const ADMIN_ITEMS = [
