@@ -49,7 +49,7 @@ export default function MetaShifts() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Meta Shift Detection</h1>
+        <h1>Meta Shift Detection</h1>
         <p className="text-textMuted text-sm mt-1">
           Anomaly detection trên win rate &amp; presence rate, bucket 2 tuần, có volume filter để
           loại noise.
@@ -68,7 +68,7 @@ export default function MetaShifts() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm champion..."
-              className="w-full bg-bg border border-border rounded-md pl-8 pr-3 py-1.5 text-sm text-text placeholder:text-textMuted focus:outline-none focus:border-accent"
+              className="w-full bg-bg border border-border rounded-lg pl-8 pr-3 py-1.5 text-sm text-text placeholder:text-textMuted focus:outline-none focus:border-accent"
             />
           </div>
           <div className="max-h-[480px] overflow-y-auto space-y-0.5">
@@ -122,10 +122,12 @@ export default function MetaShifts() {
                       contentStyle={{
                         backgroundColor: "#1A1A24",
                         border: "1px solid #2A2A38",
-                        borderRadius: 6,
+                        borderRadius: 10,
                         fontSize: 12,
+                        color: "#F5F3EE",
                       }}
                       labelStyle={{ color: "#F5F3EE" }}
+                      itemStyle={{ color: "#F5F3EE" }}
                     />
                     {[...shiftBuckets].map((b) => (
                       <ReferenceLine
@@ -155,7 +157,7 @@ export default function MetaShifts() {
                     />
                   </LineChart>
                 </ResponsiveContainer>
-                <div className="flex items-center gap-4 mt-3 text-xs text-textMuted">
+                <div className="flex items-center gap-4 mt-3 text-xs uppercase tracking-widest text-textMuted">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2.5 h-0.5 bg-win inline-block" /> Win rate
                   </span>
@@ -177,28 +179,28 @@ export default function MetaShifts() {
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs text-textMuted uppercase tracking-wider border-b border-border">
-                        <th className="pb-2 font-medium">Giai đoạn</th>
-                        <th className="pb-2 font-medium">Kéo dài</th>
-                        <th className="pb-2 font-medium">Win rate TB</th>
-                        <th className="pb-2 font-medium text-right">Score</th>
+                      <tr className="text-left text-xs uppercase tracking-widest text-textMuted bg-surface">
+                        <th className="pb-2 font-medium px-3">Giai đoạn</th>
+                        <th className="pb-2 font-medium px-3">Kéo dài</th>
+                        <th className="pb-2 font-medium px-3">Win rate TB</th>
+                        <th className="pb-2 font-medium text-right px-3">Score</th>
                       </tr>
                     </thead>
                     <tbody className="font-mono">
                       {events.map((e) => (
                         <tr
                           key={`${e.champion_id}-${e.start_bucket}`}
-                          className="border-b border-border/50 last:border-0"
+                          className="border-b border-border/50 last:border-0 hover:bg-surfaceHover/50"
                         >
-                          <td className="py-2.5 text-text">
+                          <td className="py-2.5 px-3 text-text">
                             {e.start_bucket}
                             {e.start_bucket !== e.end_bucket && ` → ${e.end_bucket}`}
                           </td>
-                          <td className="py-2.5 text-textMuted">{e.duration_buckets} bucket</td>
-                          <td className="py-2.5 text-textMuted">
+                          <td className="py-2.5 px-3 text-textMuted">{e.duration_buckets} bucket</td>
+                          <td className="py-2.5 px-3 text-textMuted">
                             {e.avg_win_rate !== null ? `${(e.avg_win_rate * 100).toFixed(0)}%` : "—"}
                           </td>
-                          <td className="py-2.5 text-accent text-right">
+                          <td className="py-2.5 px-3 text-accent text-right tabular-nums">
                             {e.max_composite_score.toFixed(2)}
                           </td>
                         </tr>

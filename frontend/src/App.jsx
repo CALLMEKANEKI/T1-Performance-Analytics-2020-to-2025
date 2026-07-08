@@ -12,7 +12,7 @@ export default function App() {
   return (
     <div className="flex min-h-screen bg-bg">
       <Sidebar />
-      <main className="flex-1 px-8 py-8 max-w-[1400px]">
+      <main className="flex-1 px-8 py-8 max-w-[1400px] space-y-6">
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/players" element={<Players />} />
@@ -26,3 +26,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -54,7 +54,7 @@ export default function Overview() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Tổng quan</h1>
+        <h1>Tổng quan</h1>
         <p className="text-textMuted text-sm mt-1">
           Phân tích 903 trận đấu của T1 từ 2020 đến 2025.
         </p>
@@ -92,7 +92,7 @@ export default function Overview() {
                 axisLine={{ stroke: "#2A2A38" }}
               />
               <Tooltip
-                contentStyle={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A38", borderRadius: 6, fontSize: 12 }}
+                contentStyle={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A38", borderRadius: 10, fontSize: 12, color: "#F5F3EE" }}
                 formatter={(v, _, p) => [`${(v * 100).toFixed(1)}% (${p.payload.total_games} games)`, "Win rate"]}
                 labelStyle={{ color: "#F5F3EE" }}
               />
@@ -142,7 +142,7 @@ export default function Overview() {
                     )}
                   />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A38", borderRadius: 6, fontSize: 12, color: "#F5F3EE" }}
+                    contentStyle={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A38", borderRadius: 10, fontSize: 12, color: "#F5F3EE" }}
                     labelStyle={{ color: "#F5F3EE" }}
                     itemStyle={{ color: "#F5F3EE" }}
                     formatter={(v, n, p) => [`${v} games · WR ${(p.payload.win_rate * 100).toFixed(1)}%`, n]}
@@ -164,7 +164,7 @@ export default function Overview() {
                     <div className="flex-1 h-1.5 bg-bg rounded-full overflow-hidden">
                       <div className="h-full bg-accent rounded-full" style={{ width: `${c.presence_rate * 100}%` }} />
                     </div>
-                    <span className="font-mono text-xs text-textMuted w-10 text-right">
+                    <span className="font-mono text-xs text-textMuted w-10 text-right tabular-nums">
                       {(c.presence_rate * 100).toFixed(1)}%
                     </span>
                   </div>
@@ -182,7 +182,7 @@ export default function Overview() {
                   <TrendingUp size={14} className="text-accent shrink-0" />
                   <span className="flex-1 text-sm text-text">{e.name}</span>
                   <span className="text-xs text-textMuted font-mono">{e.start_bucket}</span>
-                  <span className="font-mono text-xs text-accent w-12 text-right">
+                  <span className="font-mono text-xs text-accent w-12 text-right tabular-nums">
                     {e.max_composite_score.toFixed(1)}
                   </span>
                 </div>

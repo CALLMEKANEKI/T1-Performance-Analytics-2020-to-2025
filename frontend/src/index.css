@@ -3,7 +3,21 @@
 @tailwind utilities;
 
 body {
-  -webkit-font-smoothing: antialiased;
+  @apply bg-bg text-text font-body antialiased;
+}
+
+h1 {
+  @apply font-display font-bold text-2xl tracking-tight text-text;
+}
+
+h2,
+h3 {
+  @apply font-display font-semibold tracking-wide text-text;
+}
+
+label,
+.form-label {
+  @apply text-xs uppercase tracking-widest text-textMuted;
 }
 
 /* Subtle scan-line texture cho header — gợi gaming HUD, dùng tiết kiệm */

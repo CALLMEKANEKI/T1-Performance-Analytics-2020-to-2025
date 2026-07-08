@@ -25,13 +25,13 @@ export default function WinPrediction() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Win Prediction Model</h1>
+        <h1>Win Prediction Model</h1>
         <p className="text-textMuted text-sm mt-1">
           LightGBM trên draft + rolling form features — đánh giá bằng TimeSeriesSplit.
         </p>
       </div>
 
-      <div className="flex items-start gap-3 bg-accent/5 border border-accent/30 rounded-lg px-5 py-4">
+      <div className="flex items-start gap-3 bg-accent/5 border border-accent/30 rounded-xl px-5 py-4">
         <AlertTriangle size={18} className="text-accent shrink-0 mt-0.5" />
         <div className="text-sm text-text leading-relaxed">
           <span className="font-semibold">Model không vượt qua baseline.</span> Đây là kết luận
@@ -68,9 +68,12 @@ export default function WinPrediction() {
                 contentStyle={{
                   backgroundColor: "#1A1A24",
                   border: "1px solid #2A2A38",
-                  borderRadius: 6,
+                  borderRadius: 10,
                   fontSize: 12,
+                  color: "#F5F3EE",
                 }}
+                labelStyle={{ color: "#F5F3EE" }}
+                itemStyle={{ color: "#F5F3EE" }}
                 cursor={{ fill: "#22222E" }}
               />
               <Bar dataKey="importance" radius={[0, 3, 3, 0]}>

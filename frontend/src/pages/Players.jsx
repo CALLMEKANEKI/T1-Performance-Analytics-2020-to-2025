@@ -8,13 +8,13 @@ import {
   ScatterChart, Scatter, ZAxis, Cell,
 } from "recharts";
 
-const POSITION_ORDER = ["TOP", "JUNGLER", "MID", "ADC", "BOT", "SUPPORT"];
+const POSITION_ORDER = ["TOP", "JUNGLER", "MID", "ADC", "SUPPORT"];
 
 const TOOLTIP_STYLE = {
   contentStyle: {
     backgroundColor: "#1A1A24",
     border: "1px solid #2A2A38",
-    borderRadius: 6,
+    borderRadius: 10,
     fontSize: 12,
     color: "#F5F3EE",
   },
@@ -42,7 +42,7 @@ function ClusterTooltip({ active, payload }) {
   return (
     <div style={{
       background: "#1A1A24", border: "1px solid #2A2A38",
-      borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#F5F3EE",
+      borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "#F5F3EE",
     }}>
       <div className="font-semibold text-text">{d.player_name}</div>
       <div className="text-textMuted mt-0.5">{d.cluster_label}</div>
@@ -116,7 +116,7 @@ export default function Players() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Player Dashboard</h1>
+        <h1>Player Dashboard</h1>
         <p className="text-textMuted text-sm mt-1">
           Stats cá nhân, champion pool và win rate theo mùa giải.
         </p>
@@ -137,23 +137,35 @@ export default function Players() {
                 <button
                   key={p.id_player}
                   onClick={() => setSelected(p)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors text-left ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-left ${
                     selected?.id_player === p.id_player
                       ? "bg-accent/10 text-accent"
                       : "hover:bg-surfaceHover text-textMuted hover:text-text"
                   }`}
                 >
-                  <img
-                    src={`${STATIC_BASE}/static/players/${encodeURIComponent(p.ingame_name)}.png`}
-                    alt={p.ingame_name}
-                    className="w-8 h-8 rounded-full object-cover bg-bg border border-border shrink-0"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{p.ingame_name}</div>
-                    <div className="text-[11px] text-textMuted">{p.position ?? "—"}</div>
+                  <div className="relative w-8 h-8 shrink-0">
+                    <img
+                      src={`${STATIC_BASE}/static/players/${encodeURIComponent(p.ingame_name)}.png`}
+                      alt={p.ingame_name}
+                      className="w-full h-full rounded-full object-cover bg-bg border border-border"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const fallback = e.currentTarget.nextElementSibling;
+                        if (fallback) fallback.style.display = "flex";
+                      }}
+                    />
+                    <div
+                      className="absolute inset-0 items-center justify-center w-full h-full rounded-full bg-surface border border-border"
+                      style={{ display: "none" }}
+                    >
+                      <span className="text-xs font-bold text-textMuted">{p.ingame_name.charAt(0)}</span>
+                    </div>
                   </div>
-                  <span className="font-mono text-xs shrink-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate text-text">{p.ingame_name}</div>
+                    <div className="text-[11px] uppercase tracking-widest text-textMuted">{p.position ?? "—"}</div>
+                  </div>
+                  <span className="font-mono text-xs shrink-0 tabular-nums">
                     {formatPercent(p.win_rate, 0)}
                   </span>
                 </button>
@@ -183,7 +195,7 @@ export default function Players() {
                   onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
                 <div>
-                  <h2 className="font-display font-bold text-xl text-text">
+                  <h2 className="text-xl">
                     {selected.ingame_name}
                   </h2>
                   <p className="text-textMuted text-sm">{detail.info.full_name ?? "—"}</p>
@@ -220,6 +232,8 @@ export default function Players() {
                     />
                     <Tooltip
                       {...TOOLTIP_STYLE}
+                      labelStyle={{ color: "#F5F3EE" }}
+                      itemStyle={{ color: "#F5F3EE" }}
                       formatter={(v, _, p) => [`${v}% (${p.payload.games} games)`, "Win rate"]}
                     />
                     <Line
@@ -244,7 +258,7 @@ export default function Players() {
                     <select
                       value={champLimit}
                       onChange={(e) => setChampLimit(Number(e.target.value))}
-                      className="bg-bg border border-border rounded px-2 py-1 text-xs text-text focus:outline-none focus:border-accent"
+                      className="bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text focus:outline-none focus:border-accent"
                     >
                       {[10, 20, 30, 50, 999].map((n) => (
                         <option key={n} value={n}>{n === 999 ? "Tất cả" : n}</option>

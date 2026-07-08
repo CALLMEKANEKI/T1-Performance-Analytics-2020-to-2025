@@ -55,11 +55,11 @@ function SynergyTable({ data, mode, loading }) {
   }
 
   return (
-    <div className={`rounded-lg border ${borderColor} overflow-hidden`}>
+    <div className={`rounded-xl border ${borderColor} overflow-hidden`}>
       {/* Header */}
-      <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] gap-0 border-b border-border bg-bg px-4 py-2">
+      <div className="grid grid-cols-[1fr_1fr_56px_72px_72px] gap-0 border-b border-border bg-surface px-4 py-2">
         {LIFT_COLS.map((col) => (
-          <div key={col.key} className={`text-[11px] text-textMuted font-medium uppercase tracking-wide ${accentColor === "text-emerald-400" && col.key === "lift" ? accentColor : ""}`}>
+          <div key={col.key} className={`text-[11px] text-textMuted font-medium uppercase tracking-widest ${accentColor === "text-emerald-400" && col.key === "lift" ? accentColor : ""}`}>
             {col.label}
           </div>
         ))}
@@ -70,12 +70,12 @@ function SynergyTable({ data, mode, loading }) {
         {data.map((row, i) => (
           <div
             key={i}
-            className="grid grid-cols-[1fr_1fr_56px_72px_72px] gap-0 px-4 py-2.5 hover:bg-surfaceHover transition-colors"
+            className="grid grid-cols-[1fr_1fr_56px_72px_72px] gap-0 px-4 py-2.5 hover:bg-surfaceHover/50 transition-colors"
           >
             <span className="text-sm text-text font-medium truncate pr-2">{row.champion_a}</span>
             <span className="text-sm text-text font-medium truncate pr-2">{row.champion_b}</span>
-            <span className="text-xs font-mono text-textMuted">{row.co_games}</span>
-            <span className="text-xs font-mono text-textMuted">
+            <span className="text-xs font-mono text-textMuted tabular-nums">{row.co_games}</span>
+            <span className="text-xs font-mono text-textMuted tabular-nums">
               {row.synergy_wr != null ? `${(row.synergy_wr * 100).toFixed(1)}%` : "—"}
             </span>
             <LiftBadge value={row.lift} />
@@ -135,10 +135,10 @@ export default function Synergy() {
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Champion Synergy Network</h1>
+        <h1>Champion Synergy Network</h1>
         <p className="text-textMuted text-sm mt-1 max-w-2xl">
-          Phân tích synergy giữa các cặp champion T1 pick cùng team.{" "}
-          <span className="text-text font-medium">Lift &gt; 1.0</span> = combo mạnh hơn baseline T1 win rate (64.5%).{" "}
+          Phân tích synergy giữa các cặp champion T1 pick cùng team. {" "}
+          <span className="text-text font-medium">Lift &gt; 1.0</span> = combo mạnh hơn baseline T1 win rate (64.5%). {" "}
           Dùng Bayesian smoothing để tránh noise khi ít games.
         </p>
       </div>
@@ -152,7 +152,7 @@ export default function Synergy() {
             <select
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              className="bg-bg border border-border rounded px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+              className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
             >
               {YEARS.map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -169,7 +169,7 @@ export default function Synergy() {
               max={50}
               value={minGames}
               onChange={(e) => setMinGames(e.target.value)}
-              className="w-24 bg-bg border border-border rounded px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent font-mono"
+              className="w-24 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent font-mono"
             />
           </div>
 
@@ -181,7 +181,7 @@ export default function Synergy() {
               placeholder="Azir, Faker..."
               value={champion}
               onChange={(e) => setChampion(e.target.value)}
-              className="w-40 bg-bg border border-border rounded px-3 py-1.5 text-sm text-text placeholder-textMuted focus:outline-none focus:border-accent"
+              className="w-40 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text placeholder-textMuted focus:outline-none focus:border-accent"
             />
           </div>
 

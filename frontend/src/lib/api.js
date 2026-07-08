@@ -21,7 +21,14 @@ export const api = {
     return get(`/model2/shift-events?${params.toString()}`);
   },
   model2TopPresence: (topN = 10) => get(`/model2/top-presence?top_n=${topN}`),
-
+  matchesTournaments: ({ startDate, endDate, page = 1, pageSize = 20 } = {}) => {
+    const params = new URLSearchParams();
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    params.set("page", page);
+    params.set("page_size", pageSize);
+    return get(`/matches/tournaments?${params.toString()}`);
+  },
   matches: ({ tournamentId, opponentId, page = 1, pageSize = 20 } = {}) => {
     const params = new URLSearchParams();
     if (tournamentId) params.set("tournament_id", tournamentId);
@@ -88,6 +95,8 @@ export const api = {
     },
   },
 };
+
+
 
 export const STATIC_BASE = "http://localhost:8000";
 

@@ -18,6 +18,7 @@ const ADMIN_ITEMS = [
 export default function Sidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-border bg-surface flex flex-col">
+      <div className="h-1 bg-accent w-full" />
       <div className="px-5 py-6 border-b border-border">
         <div className="font-display font-bold text-lg tracking-wide text-text">
           T1<span className="text-accent">.</span>ANALYTICS
@@ -33,9 +34,9 @@ export default function Sidebar() {
             end={end}
             className={({ isActive }) =>
               clsx(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px]"
+                  ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px] font-medium"
                   : "text-textMuted hover:text-text hover:bg-surfaceHover"
               )
             }
@@ -53,9 +54,9 @@ export default function Sidebar() {
             to={to}
             className={({ isActive }) =>
               clsx(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px]"
+                  ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px] font-medium"
                   : "text-textMuted hover:text-text hover:bg-surfaceHover"
               )
             }

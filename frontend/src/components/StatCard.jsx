@@ -2,8 +2,8 @@ import clsx from "clsx";
 
 export default function StatCard({ label, value, sublabel, accent = false }) {
   return (
-    <div className="bg-surface border border-border rounded-lg px-5 py-4">
-      <div className="text-xs text-textMuted uppercase tracking-wider font-medium mb-2">
+    <div className="bg-surface border border-border rounded-xl px-5 py-4">
+      <div className="text-xs uppercase tracking-widest text-textMuted font-medium mb-2">
         {label}
       </div>
       <div

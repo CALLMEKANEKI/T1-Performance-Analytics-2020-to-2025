@@ -50,9 +50,9 @@ function SeriesExpanded({ seriesId }) {
             key={g.id_game}
             onClick={() => setActiveGameId(g.id_game)}
             className={clsx(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors",
               activeGameId === g.id_game
-                ? "bg-accent text-white"
+                ? "bg-accent text-text"
                 : "bg-surface text-textMuted hover:text-text border border-border"
             )}
           >
@@ -70,7 +70,7 @@ function SeriesExpanded({ seriesId }) {
               href={link}
               target="_blank"
               rel="noreferrer"
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs text-textMuted hover:text-accent transition-colors"
+              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-textMuted hover:text-accent transition-colors"
             >
               <Youtube size={13} /> VOD
             </a>
@@ -181,12 +181,7 @@ export default function MatchHistory() {
 
   const load = useCallback(() => {
   setLoading(true);
-  const params = new URLSearchParams({ page, page_size: PAGE_SIZE });
-  if (startDate) params.set("start_date", startDate);
-  if (endDate) params.set("end_date", endDate);
-  if (selectedTournamentId) params.set("tournament_id", selectedTournamentId);
-  fetch(`http://localhost:8000/api/matches/tournaments?${params}`)
-    .then((r) => r.json())
+  api.matchesTournaments({ page, pageSize: PAGE_SIZE, startDate, endDate, tournamentId: selectedTournamentId })
     .then((data) => setTournaments(Array.isArray(data) ? data : []))
     .finally(() => setLoading(false));
 }, [page, startDate, endDate, selectedTournamentId]);
@@ -195,11 +190,7 @@ export default function MatchHistory() {
 
   // Fetch options cho dropdown — re-fetch khi date thay đổi
   useEffect(() => {
-    const params = new URLSearchParams({ page: 1, page_size: 100 });
-    if (startDate) params.set("start_date", startDate);
-    if (endDate) params.set("end_date", endDate);
-    fetch(`http://localhost:8000/api/matches/tournaments?${params}`)
-      .then((r) => r.json())
+    api.matchesTournaments({ page: 1, pageSize: 100, startDate, endDate })
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setTournamentOptions(list);
@@ -215,7 +206,7 @@ export default function MatchHistory() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-text">Match History</h1>
+        <h1>Match History</h1>
         <p className="text-textMuted text-sm mt-1">
           Lịch sử thi đấu T1, 2020–2025. Nhấn vào tournament để xem series, nhấn series để xem chi tiết game.
         </p>
@@ -224,7 +215,7 @@ export default function MatchHistory() {
       {/* Filter bar */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2">
-          <span className="text-xs text-textMuted">Từ</span>
+          <span className="text-xs uppercase tracking-widest text-textMuted">Từ</span>
           <input
             type="date"
             value={startDate}
@@ -233,7 +224,7 @@ export default function MatchHistory() {
           />
         </div>
         <div className="flex items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2">
-          <span className="text-xs text-textMuted">Đến</span>
+          <span className="text-xs uppercase tracking-widest text-textMuted">Đến</span>
           <input
             type="date"
             value={endDate}
@@ -242,16 +233,15 @@ export default function MatchHistory() {
           />
         </div>
       <div className="flex items-center gap-2 bg-surface border border-border rounded-lg px-3 py-2">
-        <span className="text-xs text-textMuted">Giải đấu</span>
+        <span className="text-xs uppercase tracking-widest text-textMuted">Giải đấu</span>
         <select
           value={selectedTournamentId}
           onChange={(e) => { setSelectedTournamentId(e.target.value); setPage(1); }}
-          className="bg-transparent text-sm focus:outline-none max-w-[220px]"
-          style={{ color: "black" }}
+          className="bg-transparent text-sm focus:outline-none max-w-[220px] text-text"
         >
-          <option value="" style={{ color: "black" }}>Tất cả</option>
+          <option value="">Tất cả</option>
           {tournamentOptions.map((t) => (
-            <option key={t.id_tournament} value={String(t.id_tournament)} style={{ color: "black" }}>
+            <option key={t.id_tournament} value={String(t.id_tournament)}>
               {t.tournament_name}
             </option>
           ))}
@@ -260,12 +250,12 @@ export default function MatchHistory() {
         {(startDate || endDate || selectedTournamentId) && (
           <button
             onClick={() => { setStartDate(""); setEndDate(""); setSelectedTournamentId(""); setPage(1); }}
-            className="text-xs text-textMuted hover:text-accent transition-colors px-2 py-1"
+            className="text-xs uppercase tracking-widest text-textMuted hover:text-accent transition-colors px-2 py-1"
           >
             Xóa filter
           </button>
         )}
-        <span className="text-xs text-textMuted ml-auto">
+        <span className="text-xs uppercase tracking-widest text-textMuted ml-auto">
           {tournaments.length} tournament
         </span>
       </div>
