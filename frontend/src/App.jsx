@@ -7,6 +7,7 @@ import MetaShifts from "./pages/MetaShifts";
 import WinPrediction from "./pages/WinPrediction";
 import Synergy from "./pages/Synergy";
 import Admin from "./pages/Admin";
+import Agent from "./pages/Agent";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/win-prediction" element={<WinPrediction />} />
           <Route path="/synergy" element={<Synergy />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/agent" element={<Agent />} />
         </Routes>
       </main>
     </div>

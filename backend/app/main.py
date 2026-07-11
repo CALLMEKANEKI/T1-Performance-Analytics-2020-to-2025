@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.cache import AppCache
 from app.api import model1, model2, champions, matches, stats, admin
 
-from app.api import Text-to-SQL as agent_router
+from app.api import agent as agent_router
 
 cache = AppCache()
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
