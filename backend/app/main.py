@@ -15,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from app.core.cache import AppCache
 from app.api import model1, model2, champions, matches, stats, admin
 
+from app.api import Text-to-SQL as agent_router
+
 cache = AppCache()
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -47,7 +49,7 @@ app.include_router(champions.router, prefix="/api", tags=["champions"])
 app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
-
+app.include_router(agent_router.router, prefix="/api/agent", tags=["agent"])
 
 @app.get("/")
 def root():
