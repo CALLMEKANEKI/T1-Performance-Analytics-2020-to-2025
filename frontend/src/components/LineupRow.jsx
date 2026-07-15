@@ -1,11 +1,12 @@
 import { STATIC_BASE } from "../lib/api";
+import { getChampionImageUrl } from "../lib/api";
 
 export default function LineupRow({ pick }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
       <div className="relative shrink-0">
         <img
-          src={`${STATIC_BASE}/static/champions/${encodeURIComponent(pick.champion_name)}.png`}
+          src={getChampionImageUrl(pick.champion_name)}
           alt={pick.champion_name}
           className="w-9 h-9 rounded-md border border-border object-cover bg-bg"
           onError={(e) => {

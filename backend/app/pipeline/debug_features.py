@@ -4,12 +4,22 @@ Chạy từ thư mục backend: python app/pipeline/debug_features.py
 """
 
 from pathlib import Path
-
+import os
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-DB_URL = "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
+load_dotenv()
+
+_db_url = os.getenv("DATABASE_URL")
+if _db_url:
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    DB_URL = _db_url
+else:
+    DB_URL = "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
+
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 FEATURE_PATH = BACKEND_DIR / "data" / "features_model1.parquet"
 

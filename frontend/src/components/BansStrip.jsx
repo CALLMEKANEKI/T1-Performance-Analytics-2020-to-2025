@@ -1,4 +1,4 @@
-import { STATIC_BASE } from "../lib/api";
+import { getChampionImageUrl } from "../lib/api";
 
 export default function BansStrip({ bans, label }) {
   return (
@@ -10,7 +10,7 @@ export default function BansStrip({ bans, label }) {
         {bans.map((b) => (
           <div key={b.ban_order} className="relative">
             <img
-              src={`${STATIC_BASE}/static/champions/${encodeURIComponent(b.champion_name)}.png`}
+              src={getChampionImageUrl(b.champion_name)}
               alt={b.champion_name}
               title={b.champion_name}
               className="w-7 h-7 rounded border border-border object-cover bg-bg opacity-50"

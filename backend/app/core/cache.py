@@ -38,11 +38,7 @@ class AppCache:
             "SELECT id_champion as champion_id, name, image_url FROM champions",
             engine,
         )
-        # CHÈN ĐOẠN NÀY ĐỂ DEBUG:
-        print(f"--- ĐANG KIỂM TRA ĐƯỜNG DẪN MODEL 1 ---")
-        print(f"Đường dẫn tuyệt đối: {MODEL1_PATH.resolve()}")
-        print(f"File có tồn tại không?: {MODEL1_PATH.exists()}")
-        print(f"----------------------------------------")
+
         # Model 1 artifact (model đã train sẵn, load từ pickle)
         if MODEL1_PATH.exists():
             with open(MODEL1_PATH, "rb") as f:

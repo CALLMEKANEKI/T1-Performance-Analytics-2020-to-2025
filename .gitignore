@@ -10,10 +10,8 @@ __pycache__/
 venv/
 .venv/
 
-# Data - không push raw data và processed features
+# Data - không push raw data
 data/csv/
-data/*.parquet
-data/*.pkl
 *.xlsx
 *.csv
 

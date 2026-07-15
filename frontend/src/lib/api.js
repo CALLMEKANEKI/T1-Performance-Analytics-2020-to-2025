@@ -96,7 +96,18 @@ export const api = {
   },
 };
 
+export const CHAMPION_IMAGE_BASE = 
+  "https://ddragon.leagueoflegends.com/cdn/16.13.1/img/champion";
 
+export function getChampionImageUrl(championName) {
+  // Normalize tên về Riot key format
+  const key = championName
+    .replace(/'/g, "")
+    .replace(/\s+/g, "")
+    .replace(/&/g, "")
+    .replace(/\./g, "");
+  return `${CHAMPION_IMAGE_BASE}/${key}.png`;
+}
 
 export const STATIC_BASE = "http://localhost:8000";
 

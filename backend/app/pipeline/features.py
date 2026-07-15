@@ -1,8 +1,18 @@
 # backend/app/pipeline/features.py
+import os
 import pandas as pd
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-DB_URL = "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
+load_dotenv()
+
+_db_url = os.getenv("DATABASE_URL")
+if _db_url:
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    DB_URL = _db_url
+else:
+    DB_URL = "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
 
 def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
     engine = create_engine(db_url)
