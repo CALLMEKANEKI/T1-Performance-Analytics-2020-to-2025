@@ -17,7 +17,7 @@ else:
 def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
     engine = create_engine(db_url)
     
-    # Bọc câu SQL thô trong text(...) để tương thích hoàn toàn với SQLAlchemy 2.0+
+    # Giữ nguyên câu query dưới dạng text() của SQLAlchemy
     query = text("""
         SELECT
             g.id_game,
@@ -42,14 +42,15 @@ def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
         ORDER BY g.date_played, g.id_game
     """)
     
-    # Sử dụng context manager lấy connection thực tế để đọc data bằng Pandas
+    # Dùng SQLAlchemy để thực thi câu lệnh trước, rồi nạp kết quả trực tiếp vào Pandas
     with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+        result = conn.execute(query)
+        # Chuyển đổi các hàng dữ liệu (mappings) thành danh sách dict và tạo DataFrame
+        df = pd.DataFrame(result.mappings().all())
         
     df["is_win"] = (df["result"] == "WIN").astype(int)
     df["date_played"] = pd.to_datetime(df["date_played"])
     return df
-
 
 def compute_champion_rolling_winrate(df: pd.DataFrame, window_days: int = 84) -> pd.DataFrame:
     """
