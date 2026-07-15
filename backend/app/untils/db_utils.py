@@ -20,7 +20,8 @@ def execute_sql(engine, sql: str) -> Tuple[bool, Optional[pd.DataFrame], Optiona
         return False, None, "SQL không hợp lệ: chỉ cho phép SELECT"
     try:
         with engine.connect() as conn:
-            df = pd.read_sql(text(sql), conn)
+            result = conn.execute(text(sql))
+            df = pd.DataFrame(result.mappings().all())
         return True, df, None
     except Exception as e:
         return False, None, str(e)

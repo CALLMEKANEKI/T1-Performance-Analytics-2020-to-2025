@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,8 +26,10 @@ FEATURE_PATH = BACKEND_DIR / "data" / "features_model1.parquet"
 
 def load_game_dates(db_url: str = DB_URL) -> pd.DataFrame:
     engine = create_engine(db_url)
-    query = "SELECT id_game, date_played FROM games ORDER BY date_played, id_game"
-    dates = pd.read_sql(query, engine)
+    query = text("SELECT id_game, date_played FROM games ORDER BY date_played, id_game")
+    with engine.connect() as conn:
+        result = conn.execute(query)
+        dates = pd.DataFrame(result.mappings().all())
     dates["date_played"] = pd.to_datetime(dates["date_played"])
     return dates
 

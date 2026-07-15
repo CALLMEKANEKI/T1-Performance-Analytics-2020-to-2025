@@ -47,7 +47,8 @@ class TextToSQLAgent:
         
         try:
             with self.engine.connect() as conn:
-                df = pd.read_sql(text(sql), conn)
+                result = conn.execute(text(sql))
+                df = pd.DataFrame(result.mappings().all())
             return True, df, None
         except Exception as e:
             return False, None, str(e)

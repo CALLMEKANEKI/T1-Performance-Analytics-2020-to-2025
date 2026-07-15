@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from app.pipeline.features import DB_URL, load_raw_data
 
@@ -21,7 +21,7 @@ MERGED_OUTPUT_PATH = BACKEND_DIR / "data" / "model2_merged_events.parquet"
 def load_ban_data(db_url: str = DB_URL) -> pd.DataFrame:
     """Lấy ban theo game + champion (meta presence, không riêng T1)."""
     engine = create_engine(db_url)
-    query = """
+    query = text("""
         SELECT
             g.id_game,
             g.date_played,
@@ -29,8 +29,10 @@ def load_ban_data(db_url: str = DB_URL) -> pd.DataFrame:
         FROM bans b
         JOIN games g ON b.game_id = g.id_game
         ORDER BY g.date_played, g.id_game
-    """
-    bans = pd.read_sql(query, engine)
+    """)
+    with engine.connect() as conn:
+        result = conn.execute(query)
+        bans = pd.DataFrame(result.mappings().all())
     bans["date_played"] = pd.to_datetime(bans["date_played"])
     return bans
 
@@ -245,10 +247,10 @@ if __name__ == "__main__":
 
     if not shift_events.empty:
         engine = create_engine(DB_URL)
-        champion_names = pd.read_sql_query(
-            "SELECT id_champion, name FROM champions",
-            engine,
-        )
+        query = text("SELECT id_champion, name FROM champions")
+        with engine.connect() as conn:
+            result = conn.execute(query)
+            champion_names = pd.DataFrame(result.mappings().all())
         champion_names = champion_names.rename(
             columns={"id_champion": "champion_id", "name": "champion_name"}
         )
