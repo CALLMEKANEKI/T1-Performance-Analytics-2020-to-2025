@@ -68,10 +68,13 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:5173",
+        "https://t1-performance-analytics-2020-to-20.vercel.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 # Static files — mkdir trước để tránh crash nếu thư mục chưa tồn tại
