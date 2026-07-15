@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api`;
 
 async function get(path) {
   const res = await fetch(`${BASE_URL}${path}`);
@@ -109,5 +109,5 @@ export function getChampionImageUrl(championName) {
   return `${CHAMPION_IMAGE_BASE}/${key}.png`;
 }
 
-export const STATIC_BASE = "http://localhost:8000";
+export const STATIC_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 

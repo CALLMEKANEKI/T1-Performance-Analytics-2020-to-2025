@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Code, Table, Loader2, Sparkles } from "lucide-react";
 import clsx from "clsx";
 
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api`;
 
 const EXAMPLE_QUESTIONS = [
   "Top 5 champion T1 pick nhiều nhất năm 2023?",
