@@ -1,7 +1,7 @@
 # backend/app/pipeline/features.py
 import os
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text  # Import thêm 'text' từ sqlalchemy
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,7 +16,9 @@ else:
 
 def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
     engine = create_engine(db_url)
-    query = """
+    
+    # Bọc câu SQL thô trong text(...) để tương thích hoàn toàn với SQLAlchemy 2.0+
+    query = text("""
         SELECT
             g.id_game,
             g.date_played,
@@ -38,8 +40,12 @@ def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
         JOIN champions c ON gp.champion_id = c.id_champion
         JOIN teams t ON gt.team_id = t.id_team
         ORDER BY g.date_played, g.id_game
-    """
-    df = pd.read_sql(query, engine)
+    """)
+    
+    # Sử dụng context manager lấy connection thực tế để đọc data bằng Pandas
+    with engine.connect() as conn:
+        df = pd.read_sql(query, conn)
+        
     df["is_win"] = (df["result"] == "WIN").astype(int)
     df["date_played"] = pd.to_datetime(df["date_played"])
     return df
