@@ -17,10 +17,17 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Loading cache on startup...")
-    # Nạp cache lần đầu khi server start
-    cache.refresh()
-    print("Cache ready.")
+    try:
+        # Nạp cache lần đầu khi server start.
+        # Nếu DB chưa sẵn sàng (cold start trên Render), server vẫn khởi động được.
+        # Cache sẽ được điền sau qua fallback hoặc /api/refresh-cache.
+        cache.refresh()
+        print("Cache ready.")
+    except Exception as exc:
+        # Log lỗi nhưng KHÔNG re-raise — đảm bảo server luôn start thành công
+        print(f"[WARNING] Cache khởi tạo thất bại: {exc}. Server vẫn start, cache sẽ được điền sau.", flush=True)
     yield
+
 
 
 app = FastAPI(title="T1 Analytics API", lifespan=lifespan)
