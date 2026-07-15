@@ -1,4 +1,3 @@
-import { STATIC_BASE } from "../lib/api";
 import { getChampionImageUrl } from "../lib/api";
 
 export default function LineupRow({ pick }) {
