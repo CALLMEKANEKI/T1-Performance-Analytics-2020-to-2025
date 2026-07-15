@@ -33,14 +33,11 @@ class AppCache:
         """Re-query DB + rebuild toàn bộ cache. Gọi khi có data mới."""
         engine = create_engine(DB_URL)
 
-        # Mở một kết nối tường minh thông qua context manager
+        # Thực thi qua SQLAlchemy rồi tự build DataFrame
         with engine.connect() as conn:
-            # Champions lookup (dùng nhiều nơi để map id -> name)
-            # Sử dụng text() để tránh các cảnh báo/lỗi thực thi chuỗi SQL thuần trong SQLAlchemy mới
-            self.champions = pd.read_sql_query(
-                text("SELECT id_champion as champion_id, name, image_url FROM champions"),
-                conn,
-            )
+            result = conn.execute(text("SELECT id_champion as champion_id, name, image_url FROM champions"))
+            # Lấy danh sách dictionary và chuyển thành DataFrame
+            self.champions = pd.DataFrame(result.mappings().all())
 
         # Model 1 artifact (model đã train sẵn, load từ pickle)
         if MODEL1_PATH.exists():
