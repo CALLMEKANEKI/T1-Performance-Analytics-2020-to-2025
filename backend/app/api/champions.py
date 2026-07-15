@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Request
-
-router = APIRouter()
-
+from sqlalchemy import text  
+import pandas as pd
 
 @router.get("/champions")
-def list_champions(request: Request):
-    """List toàn bộ champion, dùng cho dropdown UI."""
-    cache = request.app.state.cache
-    return cache.champions.to_dict(orient="records")
+def get_champions():
+    query = text("SELECT * FROM champions") # Bọc bằng text()
+    
+    with engine.connect() as conn:
+        result = conn.execute(query)
+        df = pd.DataFrame(result.mappings().all())
+        
+    return df.to_dict(orient="records")
