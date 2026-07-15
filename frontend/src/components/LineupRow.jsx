@@ -1,4 +1,4 @@
-import { getChampionImageUrl } from "../lib/api";
+import { getChampionImageUrl, STATIC_BASE } from "../lib/api";
 
 export default function LineupRow({ pick }) {
   return (
