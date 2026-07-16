@@ -1,5 +1,5 @@
 import logging
-
+import math  # Thêm thư viện math chuẩn của Python để kiểm tra NaN/Inf nhanh gọn
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import create_engine, text
@@ -8,6 +8,24 @@ from app.pipeline.features import DB_URL
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def clean_val(val):
+    """Làm sạch từng giá trị: Chuyển NaN, inf, -inf thành None (null trong JSON)."""
+    if isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            return None
+    return val
+
+
+def clean_records(records: list) -> list:
+    """Quét qua danh sách các bản ghi (dict) để làm sạch toàn bộ dữ liệu trước khi serialize sang JSON."""
+    if not records:
+        return []
+    return [
+        {k: clean_val(v) for k, v in record.items()}
+        for record in records
+    ]
 
 
 @router.get("/champions")
@@ -24,7 +42,8 @@ def list_champions(request: Request):
 
     # ── Lớp 1: Phục vụ từ cache ──────────────────────────────────────────────
     if cache.is_champions_ready():
-        return cache.champions.to_dict(orient="records")
+        raw_records = cache.champions.to_dict(orient="records")
+        return clean_records(raw_records)  # Đã được làm sạch!
 
     # ── Lớp 2: Cache rỗng → fallback truy vấn DB trực tiếp ──────────────────
     logger.warning("/api/champions: cache chưa sẵn sàng, fallback sang DB trực tiếp.")
@@ -39,11 +58,14 @@ def list_champions(request: Request):
         if not rows:
             raise HTTPException(status_code=503, detail="Bảng champions trống trong database.")
 
-        # Điền vào cache cho các request tiếp theo
-        cache.champions = pd.DataFrame(rows)
-        logger.info("/api/champions: fallback thành công, đã cập nhật cache (%d rows).", len(rows))
+        # Chuyển đổi hàng sang dạng list dict thuần Python để xử lý
+        raw_records = [dict(r) for r in rows]
 
-        return [dict(r) for r in rows]
+        # Điền vào cache cho các request tiếp theo
+        cache.champions = pd.DataFrame(raw_records)
+        logger.info("/api/champions: fallback thành công, đã cập nhật cache (%d rows).", len(raw_records))
+
+        return clean_records(raw_records)  # Đã được làm sạch!
 
     except HTTPException:
         raise
