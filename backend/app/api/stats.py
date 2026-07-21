@@ -310,16 +310,24 @@ def synergy(
 def synergy_top_pairs(
     limit: int = Query(20, ge=1, le=100, description="Số pairs trả về"),
     mode: str = Query("synergy", description="'synergy' (lift DESC) hoặc 'anti' (lift ASC)"),
+    min_games: int = Query(5, ge=1, description="Số game tối thiểu của cặp"),
+    year: Optional[int] = Query(None, description="Lọc theo năm (2020–2025)"),
 ):
     """
-    Top N synergy hoặc anti-synergy pairs (all-time).
+    Top N synergy hoặc anti-synergy pairs (all-time hoặc theo năm).
     mode='synergy' → sort lift DESC
     mode='anti'    → sort lift ASC
     """
     if mode not in ("synergy", "anti"):
         raise HTTPException(status_code=400, detail="mode phải là 'synergy' hoặc 'anti'")
 
-    df = _load_synergy(by_year=False)
+    use_year = year is not None
+    df = _load_synergy(by_year=use_year)
+
+    if use_year and "year" in df.columns:
+        df = df[df["year"] == year]
+
+    df = df[df["co_games"] >= min_games]
 
     ascending = mode == "anti"
     cols = [c for c in SYNERGY_COLS if c in df.columns]

@@ -58,8 +58,31 @@ export const api = {
     if (champion) params.set("champion", champion);
     return get(`/stats/synergy?${params.toString()}`);
   },
-  synergyTopPairs: ({ limit = 20, mode = "synergy" } = {}) =>
-    get(`/stats/synergy/top-pairs?limit=${limit}&mode=${mode}`),
+  synergyTopPairs: (arg1, arg2, arg3, arg4) => {
+    let limit = 20;
+    let mode = "synergy";
+    let minGames = 5;
+    let year = null;
+
+    if (typeof arg1 === "object" && arg1 !== null) {
+      limit = arg1.limit ?? 20;
+      mode = arg1.mode ?? "synergy";
+      minGames = arg1.minGames ?? 5;
+      year = arg1.year;
+    } else {
+      if (arg1 !== undefined) limit = arg1;
+      if (arg2 !== undefined) mode = arg2;
+      if (arg3 !== undefined) minGames = arg3;
+      if (arg4 !== undefined) year = arg4;
+    }
+
+    const params = new URLSearchParams();
+    params.set("limit", limit);
+    params.set("mode", mode);
+    params.set("min_games", minGames);
+    if (year) params.set("year", year);
+    return get(`/stats/synergy/top-pairs?${params.toString()}`);
+  },
 
   // Admin
   admin: {
