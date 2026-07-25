@@ -27,6 +27,7 @@ export default function Overview() {
   const [topEvents, setTopEvents] = useState([]);
   const [patchStats, setPatchStats] = useState([]);
   const [sideStats, setSideStats] = useState([]);
+  const [h2h, setH2h] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,12 +37,14 @@ export default function Overview() {
       api.model2ShiftEvents({ limit: 5 }),
       api.statsByPatch(),
       api.statsBySide(),
+      api.headToHead(),
     ])
-      .then(([presence, events, patch, side]) => {
+      .then(([presence, events, patch, side, headToHeadData]) => {
         setTopPresence(presence);
         setTopEvents(events);
         setPatchStats(patch.filter((p) => p.total_games >= 3));
         setSideStats(side);
+        setH2h(headToHeadData);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -178,6 +181,59 @@ export default function Overview() {
           </div>
         </Panel>
       </div>
+
+      <Panel title="Lịch sử đối đầu" subtitle="Top 10 đối thủ T1 đã gặp nhiều nhất" loading={loading}>
+        <div className="overflow-x-auto rounded-xl border border-border bg-surface/50">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border bg-bg/50">
+                <th className="px-4 py-3 text-xs text-textMuted uppercase tracking-widest font-medium">Đối thủ</th>
+                <th className="px-4 py-3 text-xs text-textMuted uppercase tracking-widest font-medium text-center">Series (W-L)</th>
+                <th className="px-4 py-3 text-xs text-textMuted uppercase tracking-widest font-medium text-center">Games</th>
+                <th className="px-4 py-3 text-xs text-textMuted uppercase tracking-widest font-medium">Win Rate</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {h2h.slice(0, 10).map((row) => (
+                <tr key={row.opponent_id} className="hover:bg-surfaceHover/30 transition-colors group">
+                  <td className="px-4 py-3.5 text-sm font-medium text-text">{row.opponent_name}</td>
+                  <td className="px-4 py-3.5 text-sm text-center font-mono text-textMuted">
+                    <span className="text-text font-semibold">{row.t1_series_wins}</span>W
+                    <span className="mx-1 text-border">-</span>
+                    <span className="text-textMuted">{row.total_series - row.t1_series_wins}</span>L
+                  </td>
+                  <td className="px-4 py-3.5 text-sm text-center font-mono text-textMuted">{row.total_games}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold ${
+                        row.game_win_rate >= 0.60
+                          ? "bg-win/10 text-win"
+                          : row.game_win_rate <= 0.45
+                          ? "bg-loss/10 text-loss"
+                          : "bg-white/5 text-textMuted"
+                      }`}>
+                        {(row.game_win_rate * 100).toFixed(1)}%
+                      </span>
+                      <div className="w-24 h-1.5 bg-bg border border-border/50 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            row.game_win_rate >= 0.60
+                              ? "bg-win"
+                              : row.game_win_rate <= 0.45
+                              ? "bg-loss"
+                              : "bg-textMuted"
+                          }`}
+                          style={{ width: `${row.game_win_rate * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Panel title="Về dự án" variant="glass">
         <p className="text-sm text-textMuted leading-relaxed">
