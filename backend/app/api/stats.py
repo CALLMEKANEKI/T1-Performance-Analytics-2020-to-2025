@@ -333,3 +333,98 @@ def synergy_top_pairs(
     cols = [c for c in SYNERGY_COLS if c in df.columns]
     df = df[cols].sort_values("lift", ascending=ascending).head(limit)
     return _df_to_records(df)
+
+@router.get("/head-to-head")
+def head_to_head(request: Request):
+    """Lịch sử đối đầu T1 vs tất cả đội — cho Overview."""
+    engine = create_engine(DB_URL)
+    query = """
+        WITH series_results AS (
+            SELECT
+                s.id_series,
+                s.team_opponent_id,
+                SUM(CASE WHEN gt.result = 'WIN' THEN 1 ELSE 0 END) as t1_wins_in_series,
+                SUM(CASE WHEN gt.result = 'LOSS' THEN 1 ELSE 0 END) as t1_losses_in_series,
+                COUNT(*) as games_in_series
+            FROM series s
+            JOIN games g ON g.series_id = s.id_series
+            JOIN game_teams gt ON gt.game_id = g.id_game AND gt.team_id = :t1_id
+            GROUP BY s.id_series, s.team_opponent_id
+        )
+        SELECT
+            t.id_team as opponent_id,
+            t.name as opponent_name,
+            COUNT(DISTINCT sr.id_series) as total_series,
+            SUM(CASE WHEN sr.t1_wins_in_series > sr.t1_losses_in_series THEN 1 ELSE 0 END) as t1_series_wins,
+            SUM(sr.games_in_series) as total_games,
+            SUM(sr.t1_wins_in_series) as t1_game_wins,
+            ROUND(
+                SUM(sr.t1_wins_in_series)::numeric / NULLIF(SUM(sr.games_in_series), 0), 3
+            ) as game_win_rate
+        FROM series_results sr
+        JOIN teams t ON t.id_team = sr.team_opponent_id
+        GROUP BY t.id_team, t.name
+        ORDER BY total_games DESC
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@router.get("/opponents")
+def list_opponents(request: Request):
+    """List tất cả đội đã từng gặp T1 — cho dropdown filter."""
+    engine = create_engine(DB_URL)
+    query = """
+        SELECT
+            t.id_team,
+            t.name,
+            COUNT(DISTINCT s.id_series) as total_series,
+            COUNT(DISTINCT g.id_game) as total_games
+        FROM series s
+        JOIN teams t ON t.id_team = s.team_opponent_id
+        JOIN games g ON g.series_id = s.id_series
+        WHERE s.team_opponent_id != :t1_id
+        GROUP BY t.id_team, t.name
+        ORDER BY total_games DESC
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+    return [dict(r) for r in rows]
+
+
+@router.get("/player/{player_id}/vs-opponent")
+def player_vs_opponent(player_id: int, opponent_id: int, request: Request):
+    """
+    Champions player đó dùng khi T1 gặp opponent cụ thể.
+    Dùng Bayesian smoothing alpha=2 để tránh noise ít game.
+    """
+    engine = create_engine(DB_URL)
+    query = """
+        SELECT
+            c.name as champion_name,
+            COUNT(*) as games_played,
+            SUM(CASE WHEN gt.result = 'WIN' THEN 1 ELSE 0 END) as wins,
+            ROUND(
+                (SUM(CASE WHEN gt.result = 'WIN' THEN 1.0 ELSE 0 END) + 2)
+                / (COUNT(*) + 4), 3
+            ) as win_rate
+        FROM game_players gp
+        JOIN game_teams gt ON gp.game_team_id = gt.id_game_team
+        JOIN games g ON gt.game_id = g.id_game
+        JOIN series s ON g.series_id = s.id_series
+        JOIN champions c ON gp.champion_id = c.id_champion
+        WHERE gp.player_id = :player_id
+          AND gt.team_id = :t1_id
+          AND s.team_opponent_id = :opponent_id
+        GROUP BY c.name
+        ORDER BY games_played DESC
+        LIMIT 15
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(query), {
+            "player_id": player_id,
+            "t1_id": T1_ID,
+            "opponent_id": opponent_id,
+        }).mappings().all()
+    return [dict(r) for r in rows]
