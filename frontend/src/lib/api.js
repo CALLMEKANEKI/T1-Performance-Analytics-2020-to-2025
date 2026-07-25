@@ -46,6 +46,10 @@ export const api = {
   statsBySide: () => get("/stats/winrate-by-side"),
   playerWinrates: () => get("/stats/player-winrates"),
   playerDetail: (playerId) => get(`/stats/player/${playerId}`),
+  headToHead: () => get("/stats/head-to-head"),
+  opponents: () => get("/stats/opponents"),
+  playerVsOpponent: (playerId, opponentId) =>
+    get(`/stats/player/${playerId}/vs-opponent?opponent_id=${opponentId}`),
 
   // Model 3: Player clustering
   playerClusters: () => get("/stats/player-clusters"),

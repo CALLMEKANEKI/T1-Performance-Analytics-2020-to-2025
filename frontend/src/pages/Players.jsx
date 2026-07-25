@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, STATIC_BASE } from "../lib/api";
+import { api, STATIC_BASE, getChampionImageUrl } from "../lib/api";
 import Panel from "../components/Panel";
 import StatCard from "../components/StatCard";
 import {
@@ -71,11 +71,20 @@ export default function Players() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [champLimit, setChampLimit] = useState(20);
-  const [activeTab, setActiveTab] = useState("stats"); // "stats" | "clustering"
+  const [activeTab, setActiveTab] = useState("stats"); // "stats" | "clustering" | "vs"
+  // Vs Opponent state
+  const [opponents, setOpponents] = useState([]);
+  const [selectedOpponent, setSelectedOpponent] = useState(null);
+  const [vsData, setVsData] = useState([]);
+  const [loadingVs, setLoadingVs] = useState(false);
 
   useEffect(() => {
-    Promise.all([api.playerWinrates(), api.playerClusters()])
-      .then(([pData, cData]) => {
+    Promise.all([
+      api.playerWinrates(),
+      api.playerClusters(),
+      api.opponents(),
+    ])
+      .then(([pData, cData, oData]) => {
         const sorted = [...pData].sort((a, b) => {
           const ai = POSITION_ORDER.indexOf(a.position ?? "");
           const bi = POSITION_ORDER.indexOf(b.position ?? "");
@@ -84,11 +93,24 @@ export default function Players() {
         });
         setPlayers(sorted);
         setClusters(cData || []);
+        // Sort opponents by total_games DESC (already sorted from API but enforce here)
+        setOpponents((oData || []).sort((a, b) => b.total_games - a.total_games));
         const faker = sorted.find((p) => p.ingame_name === "Faker");
         if (faker) setSelected(faker);
       })
       .finally(() => setLoadingList(false));
   }, []);
+
+  // Fetch vs-opponent data when both player and opponent are selected
+  useEffect(() => {
+    if (!selected || !selectedOpponent) { setVsData([]); return; }
+    setLoadingVs(true);
+    setVsData([]);
+    api.playerVsOpponent(selected.id_player, selectedOpponent.id_team)
+      .then(setVsData)
+      .catch(() => setVsData([]))
+      .finally(() => setLoadingVs(false));
+  }, [selected, selectedOpponent]);
 
   useEffect(() => {
     if (!selected) return;
@@ -135,7 +157,11 @@ export default function Players() {
 
       {/* Tab switcher */}
       <div className="flex gap-1 border-b border-border">
-        {[{ id: "stats", label: "Player Stats" }, { id: "clustering", label: "Career Clustering" }].map((tab) => (
+        {[
+          { id: "stats", label: "Player Stats" },
+          { id: "clustering", label: "Career Clustering" },
+          { id: "vs", label: "Vs Opponent" },
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -394,6 +420,161 @@ export default function Players() {
               </div>
             </div>
           </Panel>
+        </div>
+      )}
+
+      {/* ── TAB: Vs Opponent ── */}
+      {activeTab === "vs" && (
+        <div className="grid grid-cols-[260px_1fr] gap-6 animate-fade-in">
+          {/* Player list (reused) */}
+          <Panel title="Roster T1" className="h-fit" loading={loadingList}>
+            <div className="space-y-0.5 max-h-[560px] overflow-y-auto">
+              {players.map((p) => {
+                const posColor = POSITION_COLORS[p.position] ?? POSITION_COLORS.default;
+                return (
+                  <button
+                    key={p.id_player}
+                    onClick={() => setSelected(p)}
+                    className={clsx(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group",
+                      selected?.id_player === p.id_player
+                        ? "bg-accent/10 text-accent"
+                        : "hover:bg-surfaceHover text-textMuted hover:text-text"
+                    )}
+                  >
+                    <PlayerAvatar name={p.ingame_name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{p.ingame_name}</div>
+                      <div className="text-[11px]" style={{ color: posColor }}>{p.position ?? "—"}</div>
+                    </div>
+                    <span className="font-mono text-xs shrink-0">{(p.win_rate * 100).toFixed(0)}%</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+
+          {/* Vs panel */}
+          <div className="space-y-4">
+            {/* Opponent selector */}
+            <Panel>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-textMuted font-medium uppercase tracking-wide whitespace-nowrap">
+                  Đối thủ
+                </label>
+                <select
+                  value={selectedOpponent?.id_team ?? ""}
+                  onChange={(e) => {
+                    const opp = opponents.find((o) => String(o.id_team) === e.target.value);
+                    setSelectedOpponent(opp ?? null);
+                  }}
+                  className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+                >
+                  <option value="">-- Chọn đối thủ --</option>
+                  {opponents.map((o) => (
+                    <option key={o.id_team} value={o.id_team}>
+                      {o.name} ({o.total_games} games)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Panel>
+
+            {/* Results panel */}
+            <Panel
+              title={
+                selected && selectedOpponent
+                  ? `${selected.ingame_name} vs ${selectedOpponent.name}`
+                  : "Champion picks vs đối thủ"
+              }
+              subtitle={selected && selectedOpponent ? "Sort theo games DESC · Bayesian smoothed WR" : ""}
+              loading={loadingVs}
+            >
+              {!selectedOpponent ? (
+                <div className="py-16 text-center text-textMuted text-sm">
+                  Chọn đối thủ để xem stats
+                </div>
+              ) : loadingVs ? (
+                <div className="space-y-2">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-10 bg-surfaceHover rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : vsData.length === 0 ? (
+                <div className="py-16 text-center text-textMuted text-sm">
+                  Không có data cho matchup này
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-border bg-surface/40">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-border bg-bg/50">
+                        {["Champion", "Games", "Wins", "Win Rate"].map((h) => (
+                          <th
+                            key={h}
+                            className="px-4 py-3 text-xs text-textMuted uppercase tracking-widest font-medium"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {vsData.map((row) => (
+                        <tr
+                          key={row.champion_name}
+                          className="hover:bg-surfaceHover/30 transition-colors"
+                        >
+                          {/* Champion */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={getChampionImageUrl(row.champion_name)}
+                                alt={row.champion_name}
+                                className="w-8 h-8 rounded-lg border border-border object-cover bg-bg shrink-0"
+                                onError={(e) => { e.currentTarget.style.opacity = "0.2"; }}
+                              />
+                              <span className="text-sm font-medium text-text">{row.champion_name}</span>
+                            </div>
+                          </td>
+                          {/* Games */}
+                          <td className="px-4 py-3 font-mono text-sm text-textMuted">{row.games_played}</td>
+                          {/* Wins */}
+                          <td className="px-4 py-3 font-mono text-sm text-textMuted">{row.wins}</td>
+                          {/* Win Rate badge + bar */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <span className={clsx(
+                                "inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-semibold",
+                                row.win_rate >= 0.60
+                                  ? "bg-win/10 text-win"
+                                  : row.win_rate <= 0.45
+                                  ? "bg-loss/10 text-loss"
+                                  : "bg-white/5 text-textMuted"
+                              )}>
+                                {(row.win_rate * 100).toFixed(1)}%
+                              </span>
+                              <div className="w-20 h-1.5 bg-bg border border-border/50 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                <div
+                                  className={clsx(
+                                    "h-full rounded-full transition-all duration-500",
+                                    row.win_rate >= 0.60 ? "bg-win"
+                                    : row.win_rate <= 0.45 ? "bg-loss"
+                                    : "bg-textMuted"
+                                  )}
+                                  style={{ width: `${row.win_rate * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          </div>
         </div>
       )}
     </div>
