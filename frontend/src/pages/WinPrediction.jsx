@@ -75,6 +75,22 @@ export default function WinPrediction() {
       importance: +s.mean_shap.toFixed(3),
     }));
 
+  // Fallback values nếu backend chưa trả đủ object
+  const metrics = info?.metrics || {
+    auc: 0.53,
+    accuracy: 55.7,
+    baseline_accuracy: 64.45,
+    accuracy_diff: -8.75
+  };
+
+  const foldsData = info?.folds || [
+    { fold: 1, auc: 0.35, period: "2020–2021", note: "Cold start" },
+    { fold: 2, auc: 0.57, period: "2021–2022", note: "Roster ổn định" },
+    { fold: 3, auc: 0.54, period: "2022–2023", note: "—" },
+    { fold: 4, auc: 0.59, period: "2023–2024", note: "Tốt nhất" },
+    { fold: 5, auc: 0.60, period: "2024–2025", note: "Tốt nhất" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="animate-fade-in">
@@ -90,27 +106,27 @@ export default function WinPrediction() {
         <div>
           <div className="text-sm font-semibold text-text mb-0.5">Model không vượt qua baseline</div>
           <p className="text-xs text-textMuted leading-relaxed">
-            AUC 0.53 thấp hơn naive baseline (luôn đoán T1 thắng = 64.45% accuracy). Đây là kết luận phân tích, không phải lỗi kỹ thuật — xem giải thích bên dưới.
+            AUC {metrics.auc} thấp hơn naive baseline (luôn đoán T1 thắng = {metrics.baseline_accuracy}% accuracy). Đây là kết luận phân tích, không phải lỗi kỹ thuật — xem giải thích bên dưới.
           </p>
         </div>
       </div>
 
-      {/* KPI */}
+      {/* KPI Dynamic */}
       <div className="grid grid-cols-3 gap-4 stagger-children">
         <StatCard
           label="LightGBM AUC"
-          value="0.53"
+          value={metrics.auc.toString()}
           sublabel="Trung bình 5-fold TimeSeriesSplit"
         />
         <StatCard
           label="Accuracy"
-          value="55.7%"
+          value={`${metrics.accuracy}%`}
           sublabel="Trung bình 5-fold"
-          trend={{ value: -8.75, label: "pp vs baseline" }}
+          trend={{ value: metrics.accuracy_diff, label: "pp vs baseline" }}
         />
         <StatCard
           label="Naive Baseline"
-          value="64.45%"
+          value={`${metrics.baseline_accuracy}%`}
           sublabel="Luôn đoán T1 thắng"
           accent
         />
@@ -146,7 +162,7 @@ export default function WinPrediction() {
                   <Cell
                     key={i}
                     fill="#E0144C"
-                    fillOpacity={0.25 + (i / chartData.length) * 0.75}
+                    fillOpacity={0.25 + (i / (chartData.length || 1)) * 0.75}
                   />
                 ))}
               </Bar>
@@ -162,13 +178,13 @@ export default function WinPrediction() {
                 icon={TrendingDown}
                 variant="warning"
                 title="Fold 1 (2020–2021) sụp mạnh nhất"
-                description="AUC ~0.33 trong giai đoạn này — trùng với thời điểm SKT → T1 rebrand và roster thay đổi liên tục. Rolling player form chưa đủ historical data để ổn định."
+                description={`AUC ~${foldsData[0]?.auc || 0.35} trong giai đoạn này — trùng với thời điểm SKT → T1 rebrand và roster thay đổi liên tục. Rolling player form chưa đủ historical data để ổn định.`}
               />
               <InsightCard
                 icon={Brain}
                 variant="info"
                 title="SHAP top features hợp lý nhưng signal yếu"
-                description="Model học đúng signal — rolling win rate của player và champion là features quan trọng nhất. Vấn đề không phải features sai, mà là signal quá yếu so với noise từ in-game execution."
+                description="Model học đúng signal — rolling win rate của player và champion là features quan trọng nhất. Vấn đề không phải features sai, mà là signal quá yếu so me noise từ in-game execution."
               />
               <InsightCard
                 icon={Info}
@@ -196,7 +212,7 @@ export default function WinPrediction() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-textMuted">Training data</span>
-                  <span className="text-text">903 games (2020–2025)</span>
+                  <span className="text-text">{info.training_games || "903 games"} ({info.training_period || "2020–2025"})</span>
                 </div>
               </div>
             </Panel>
@@ -205,15 +221,9 @@ export default function WinPrediction() {
       </div>
 
       {/* Timeline fold performance */}
-      <Panel title="Performance theo fold (temporal)" subtitle="Fold sau = data mới hơn — model cải thiện dần theo thời gian">
+      <Panel title="Performance theo fold (temporal)" subtitle="Fold sau = data mới hơn — model cải thiện dần theo thời gian" loading={loading}>
         <div className="grid grid-cols-5 gap-3">
-          {[
-            { fold: 1, auc: 0.35, period: "2020–2021", note: "Cold start" },
-            { fold: 2, auc: 0.57, period: "2021–2022", note: "Roster ổn định" },
-            { fold: 3, auc: 0.54, period: "2022–2023", note: "—" },
-            { fold: 4, auc: 0.59, period: "2023–2024", note: "Tốt nhất" },
-            { fold: 5, auc: 0.60, period: "2024–2025", note: "Tốt nhất" },
-          ].map((f) => (
+          {foldsData.map((f) => (
             <div key={f.fold} className="bg-bg border border-border rounded-xl p-3 text-center">
               <div className="text-xs text-textMuted mb-1">Fold {f.fold}</div>
               <div className={clsx(
@@ -223,7 +233,7 @@ export default function WinPrediction() {
                 {f.auc}
               </div>
               <div className="text-[10px] text-textMuted">{f.period}</div>
-              {f.note !== "—" && (
+              {f.note && f.note !== "—" && (
                 <div className="text-[10px] text-accent mt-1">{f.note}</div>
               )}
             </div>
