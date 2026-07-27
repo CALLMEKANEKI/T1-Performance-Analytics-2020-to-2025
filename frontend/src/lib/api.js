@@ -1,5 +1,8 @@
 const rawApiUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
+export const BASE_URL = `${rawApiUrl}/api`;
+export const STATIC_BASE = rawApiUrl;
+
 async function get(path) {
   const res = await fetch(`${BASE_URL}${path}`);
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
@@ -136,6 +139,4 @@ export function getChampionImageUrl(championName) {
   return `${CHAMPION_IMAGE_BASE}/${key}.png`;
 }
 
-export const BASE_URL = `${rawApiUrl}/api`;
-export const STATIC_BASE = rawApiUrl;
 
