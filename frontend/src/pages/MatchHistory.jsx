@@ -136,7 +136,6 @@ function TournamentCard({ tournament }) {
 
   const wins = tournament.t1_wins ?? 0;
   const total = tournament.total_games ?? 0;
-  const winPct = total ? (wins / total * 100).toFixed(0) : 0;
 
   return (
     <div className={clsx(
@@ -197,31 +196,31 @@ export default function MatchHistory() {
   const [tournamentOptions, setTournamentOptions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch dropdown options khi date thay đổi
+  // Fetch dropdown options khi date thay đổi - dùng api.matchesTournaments()
   useEffect(() => {
-    const params = new URLSearchParams({ page: 1, page_size: 100 });
-    if (startDate) params.set("start_date", startDate);
-    if (endDate) params.set("end_date", endDate);
-    fetch(`http://localhost:8000/api/matches/tournaments?${params}`)
-      .then((r) => r.json())
+    api.matchesTournaments({ startDate, endDate, page: 1, pageSize: 100 })
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setTournamentOptions(list);
         if (selectedTournamentId && !list.find((t) => String(t.id_tournament) === selectedTournamentId)) {
           setSelectedTournamentId("");
         }
-      });
+      })
+      .catch((err) => console.error("Lỗi lấy danh sách giải đấu:", err));
   }, [startDate, endDate]);
 
+  // Load danh sách tournaments chính - dùng api.matchesTournaments()
   const load = useCallback(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page, page_size: PAGE_SIZE });
-    if (startDate) params.set("start_date", startDate);
-    if (endDate) params.set("end_date", endDate);
-    if (selectedTournamentId) params.set("tournament_id", selectedTournamentId);
-    fetch(`http://localhost:8000/api/matches/tournaments?${params}`)
-      .then((r) => r.json())
+    api.matchesTournaments({
+      startDate,
+      endDate,
+      tournamentId: selectedTournamentId,
+      page,
+      pageSize: PAGE_SIZE,
+    })
       .then((data) => setTournaments(Array.isArray(data) ? data : []))
+      .catch((err) => console.error("Lỗi lấy dữ liệu trận đấu:", err))
       .finally(() => setLoading(false));
   }, [page, startDate, endDate, selectedTournamentId]);
 
@@ -232,7 +231,7 @@ export default function MatchHistory() {
       <div className="animate-fade-in">
         <h1 className="font-display font-bold text-2xl text-text tracking-tight">Match History</h1>
         <p className="text-textMuted text-sm mt-1">
-          Lịch sử thi đấu T1, 2020–2025. Nhấn vào tournament để xem series.
+          Lịch sử thi đấu T1. Nhấn vào tournament để xem series.
         </p>
       </div>
 
