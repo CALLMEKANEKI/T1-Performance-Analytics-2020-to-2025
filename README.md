@@ -1,193 +1,225 @@
 # T1 Performance Analytics (2020–2025)
 
-Dự án phân tích dữ liệu trận đấu của T1 từ năm 2020 đến 2025 bằng pipeline dữ liệu, mô hình học máy và dashboard trực quan. Mục tiêu không chỉ là dự đoán kết quả, mà còn giúp khám phá xu hướng meta, player form, champion synergy và các thay đổi chiến thuật theo thời gian.
+ML-powered analytics platform phân tích 903 trận đấu của T1 (League of Legends, LCK) từ 2020 đến 2025 — kết hợp 4 ML models, Text-to-SQL agent, và dashboard tương tác đầy đủ.
+
+🔗 **Live Demo:** [t1-performance-analytics-2020-to-20.vercel.app](https://t1-performance-analytics-2020-to-20.vercel.app)
+
+---
 
 ## Tổng quan
 
-Dự án hiện có đầy đủ stack từ ETL, backend API đến frontend dashboard:
+Dự án này không chỉ build model mà tập trung vào **việc đặt đúng câu hỏi nghiên cứu và đọc đúng kết quả** — kể cả khi kết quả là "model này không nên được dùng để predict outcome."
 
-- Backend: Python + FastAPI + SQLAlchemy + PostgreSQL
-- Frontend: React + Vite + Tailwind CSS + Recharts
-- Data pipeline: ETL từ CSV/Excel vào PostgreSQL, feature engineering, model training và clustering
+**Stack:** PostgreSQL (Neon) · Python (Pandas, LightGBM, XGBoost, SHAP, scikit-learn) · FastAPI · React + Tailwind CSS · Groq/Claude/OpenAI (Text-to-SQL Agent)
 
-Stack hiện tại: PostgreSQL (Docker) · Python (Pandas, LightGBM, XGBoost, SHAP) · FastAPI · React + Vite
+**Deploy:** Neon (DB) · Render (Backend) · Vercel (Frontend)
 
 ---
 
-## Dữ liệu
+## Data
 
-- Nguồn: lịch sử trận đấu T1 từ 2020–2025
-- Quy mô ước tính: 903 trận, 362 series, 338 players, 334 champions, 80 patches
-- Schema: chuẩn hóa theo chuỗi tournaments → series → games → game_teams → game_players, kèm bảng bans và champion metadata
-- Lưu ý: roster player được lấy theo bảng players với `team_id = 1` để đảm bảo dashboard hiển thị đúng danh sách T1 hiện tại
-
----
-
-## Tính năng hiện có
-
-### 1. Overview dashboard
-- Win rate theo patch
-- Win rate theo giải đấu/tournament
-- Win rate theo side (Blue/Red)
-- Tổng quan thống kê chung về T1
-
-### 2. Match History
-- Xem lịch sử trận đấu chi tiết
-- Hiển thị lineup, bans, picks và kết quả từng game
-
-### 3. Player Dashboard
-- Danh sách player thuộc roster T1
-- Thống kê win rate, tổng số trận, champion pool
-- Biểu đồ win rate theo năm
-- Player career clustering (PCA + KMeans)
-
-### 4. Meta Shifts
-- Phát hiện các champion trải qua meta shift theo thời gian
-- Biểu đồ time series và events
-
-### 5. Synergy Network
-- Phân tích cặp champion có synergy/anti-synergy
-- Hỗ trợ lọc theo năm, số trận tối thiểu và champion cụ thể
-
-### 6. Win Prediction
-- Thử nghiệm mô hình dự đoán kết quả dựa trên draft, player form và meta context
-- Có thể dùng để nghiên cứu thay vì phục vụ production prediction
-
-### 7. Admin panel
-- Quản lý champions, players, teams, tournaments
-- Import dữ liệu và xem trước trước khi ghi vào DB
+- **Nguồn:** Match history thủ công thu thập, 2020–2025, chỉ các trận T1 tham gia
+- **Quy mô:** 903 games · 362 series · 338 players · 334 champions · 80 patches · 45 tournaments
+- **Schema:** Normalized 9 bảng (tournaments → series → games → game_teams → game_players, bans riêng)
 
 ---
 
-## Mô hình và nghiên cứu
+## 4 ML Models
 
 ### Model 1: Win Prediction from Draft + Player Form
 
-#### Hypothesis
-Liệu draft, meta context và player form có đủ để dự đoán kết quả T1 thắng/thua?
+**Hypothesis:** Liệu draft, meta context và player form có đủ để predict T1 thắng/thua?
 
-#### Approach
-- Features: champion one-hot, side, patch, rolling win rate cho player/champion, player-champion mastery
-- Model: LightGBM + XGBoost
-- Evaluation: TimeSeriesSplit thay vì random split để tránh data leakage
-- Explainability: SHAP values
+**Approach:**
+- 314 features: champion one-hot, side, patch, rolling win rate 84-day window (Bayesian smoothing α=3), player-champion mastery
+- LightGBM + XGBoost, evaluate bằng `TimeSeriesSplit` 5-fold (không dùng random split vì temporal dependency)
+- SHAP values để explain model
 
-#### Kết quả
-- Model không vượt qua naive baseline ở mức độ đáng tin cậy
-- Đây là một kết quả nghiên cứu hợp lệ, không phải lỗi kỹ thuật
+**Kết quả:**
 
-### Model 2: Meta Shift Detection
-- Dùng time-series theo bucket 2 tuần cho champion
-- Phát hiện đột biến về win rate và presence rate
-- Vận dụng volume filter để giảm false positive
+| Metric | LightGBM | XGBoost | Naive Baseline |
+|--------|----------|---------|----------------|
+| AUC (avg 5-fold) | 0.533 | 0.523 | 0.50 |
+| Accuracy | 55.7% | 54.7% | **64.45%** |
 
-### Model 3: Player Clustering
-- Dùng PCA + KMeans để nhóm player theo đặc điểm career pattern
-- Trực quan hóa bằng scatter plot trên dashboard
-
-### Model 4: Champion Synergy Network
-- Tính toán cặp champion có synergy/anti-synergy theo thời gian
+**Model thua naive baseline** — đây là kết luận, không phải lỗi. SHAP analysis chỉ ra player form quan trọng hơn champion pick, consistent với quan điểm pro community về T1.
 
 ---
 
-## Kiến trúc kỹ thuật
+### Model 2: Meta Shift Detection
 
-```text
-PostgreSQL (Docker)
-    ↓ SQLAlchemy
-ETL pipeline (etl.py / CSV import)
-    ↓
-Feature engineering + model training
-    ↓
-FastAPI backend
-    ↓
-React + Vite frontend dashboard
+**Hypothesis:** Có thể detect được khi nào champion trải qua "meta shift" không?
+
+**Approach:**
+- Time series: mỗi champion × bucket 2 tuần → pick/ban/win rate, presence rate
+- Anomaly detection: composite Z-score = √(z_winrate² + z_presence²) so với rolling baseline 12 tuần
+- Volume filter: ≥5 picks+bans/bucket, ≥15 trong baseline
+- Consecutive event merging
+
+**Kết quả:** 5,178 champion-bucket data points → 302 raw events → **254 merged events**
+
+**Top finding:** Renekton (2024-07), win rate 75%, presence 31%, kéo dài 4 tuần — pattern rõ của buff/meta change.
+
+---
+
+### Model 3: Player Career Clustering
+
+**Hypothesis:** Có thể phân nhóm T1 players theo career profile không?
+
+**Approach:**
+- KMeans K=3, features: overall/blue/red winrate, yearly winrate, champion pool stats, HHI specialization, career trend
+- RobustScaler + PCA(2D) để visualize
+- Silhouette Score: **0.76**
+
+**Kết quả:**
+
+| Cluster | Players | Avg Win Rate | Avg Games |
+|---------|---------|-------------|-----------|
+| Core Roster | Faker, Keria, Oner, Zeus, Gumayusi... | 65.7% | 709 |
+| Veteran | Effort, Doran | 64.2% | 145 |
+| Outlier | Smash | 53.6% | 28 |
+
+---
+
+### Model 4: Champion Synergy Network
+
+**Hypothesis:** Champion nào T1 hay pick cùng nhau và synergy ra sao?
+
+**Approach:**
+- Generate pairs từ itertools.combinations(5 picks, 2) mỗi game
+- Synergy score: Bayesian smoothed win rate + lift = synergy_wr / global_baseline_wr (64.5%)
+- Lift > 1.0 = synergy dương so với baseline T1
+
+**Kết quả:** **527 unique pairs** · Top: Azir + Varus (lift 1.27) · Anti: Kindred + Nautilus (lift 0.42)
+
+---
+
+## Text-to-SQL Agent
+
+Natural language query vào database — hỗ trợ nhiều LLM providers:
+
+```
+User: "Top 5 champion T1 pick nhiều nhất năm 2023?"
+Agent: SELECT c.name, COUNT(*) ... → Azir (42), Xayah (28), Sejuani (27)...
 ```
 
-### API chính
+**Providers:** Groq · Claude · OpenAI · OpenRouter · Ollama (local)
 
-```text
-GET /api/champions
-GET /api/stats/winrate-by-patch
-GET /api/stats/winrate-by-tournament
-GET /api/stats/winrate-by-side
-GET /api/stats/player-winrates
-GET /api/stats/player/{player_id}
-GET /api/stats/player-clusters
-GET /api/stats/synergy
-GET /api/stats/synergy/top-pairs
-GET /api/matches
-GET /api/matches/{series_id}
-GET /api/matches/game/{game_id}
+**Config qua `.env`:**
+```
+AGENT_PROVIDER=groq
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+---
+
+## Features
+
+- **Overview:** Win rate theo patch (area chart), Blue/Red side stats, meta shift events, head-to-head history
+- **Match History:** Tournament → Series → Game (3-level expand), filter date/tournament
+- **Players:** Career stats, champion pool (stacked bar + win rate line), yearly trend, vs-opponent matchup analysis, career clustering (PCA scatter plot)
+- **Meta Shifts:** Time series win rate + presence rate, shift event detection và table
+- **Win Prediction:** SHAP importance chart, fold timeline, insight cards
+- **Synergy Network:** Lift-based scoring table, type badges, anti-synergy analysis
+- **Analytics Agent:** Chat interface, SQL viewer với copy button, data table
+- **Admin:** Import Excel + CRUD master data (champions, players, teams, tournaments)
+
+---
+
+## Kiến trúc
+
+```
+Excel Data (903 games)
+    ↓ ETL (Python/SQLAlchemy)
+PostgreSQL (Neon serverless)
+    ↓ Feature Engineering
+    ├── Model 1: LightGBM/XGBoost (win prediction)
+    ├── Model 2: Z-score anomaly (meta shift)
+    ├── Model 3: KMeans clustering (player profiles)
+    └── Model 4: Synergy graph (champion pairs)
+    ↓ FastAPI (cache layer, 9 routers)
+    ↓ React + Tailwind CSS (8 pages)
 ```
 
 ---
 
 ## Chạy local
 
-### 1. Khởi động database
-
 ```bash
+# 1. Start PostgreSQL
 docker compose up postgres -d
-```
 
-### 2. Cài đặt backend
+# 2. Import data
+python backend/app/etl.py \
+  --file "data/csv/T1MatchHistory_2020-2025.xlsx" \
+  --db-url "postgresql://t1_user:password@localhost:5433/t1_analytics"
 
-```bash
+# 3. Build ML models
 cd backend
-pip install -r requirements.txt
-```
+python -m app.pipeline.features
+python -m app.pipeline.train_model1
+python -m app.pipeline.model2_meta_shift
+python -m app.pipeline.model3_player_clustering
+python -m app.pipeline.model4_synergy_network
 
-### 3. Chạy ETL / tạo dữ liệu
-
-```bash
-python app/etl.py
-# hoặc nếu dùng script riêng, chạy các pipeline feature/model tương ứng
-```
-
-### 4. Chạy backend
-
-```bash
+# 4. Start backend
 uvicorn app.main:app --reload --port 8000
-```
 
-### 5. Chạy frontend
-
-```bash
+# 5. Start frontend
 cd frontend
-npm install
-npm run dev
+npm install && npm run dev
 ```
-
-Frontend chạy tại `http://localhost:5173`, backend tại `http://localhost:8000`.
 
 ---
 
-## Chạy bằng Docker Compose
+## API Endpoints
 
-```bash
-docker compose up --build
 ```
-
-Điều này sẽ khởi động postgres, backend và frontend cùng lúc.
+GET  /api/champions
+GET  /api/model1/info
+GET  /api/model1/shap-importance
+GET  /api/model2/timeseries/{champion_id}
+GET  /api/model2/shift-events
+GET  /api/model2/top-presence
+GET  /api/matches/tournaments
+GET  /api/matches/{series_id}/games
+GET  /api/matches/game/{game_id}/detail
+GET  /api/stats/winrate-by-patch
+GET  /api/stats/winrate-by-tournament
+GET  /api/stats/winrate-by-side
+GET  /api/stats/player-winrates
+GET  /api/stats/player/{player_id}
+GET  /api/stats/head-to-head
+GET  /api/stats/opponents
+GET  /api/stats/player/{player_id}/vs-opponent
+GET  /api/stats/player-clusters
+GET  /api/stats/synergy
+GET  /api/stats/synergy/top-pairs
+POST /api/agent/ask
+POST /api/admin/import/preview
+POST /api/admin/import
+GET  /api/admin/import/template
+GET  /api/refresh-cache
+```
 
 ---
 
-## Những bài học chính
+## Những gì học được
 
-- Negative result vẫn là kết quả nghiên cứu hợp lệ
-- TimeSeriesSplit quan trọng khi dữ liệu có dependency theo thời gian
-- Volume threshold giúp giảm false positive trong anomaly detection
-- Debug schema mismatch là phần không thể thiếu trong pipeline dữ liệu thực tế
+- **Negative result là kết quả hợp lệ** — biết tại sao model fail quan trọng hơn ép accuracy cao
+- **TimeSeriesSplit** thay vì random split khi data có temporal dependency
+- **Volume threshold** trong anomaly detection — Z-score trên sample nhỏ cho kết quả cực đoan giả tạo
+- **Schema mismatch debugging** — silent fail khi tên cột sai case, chỉ phát hiện qua cross-check nhiều bước
+- **Bayesian smoothing** để tránh noise từ champion ít picks
+- **Multi-provider LLM architecture** — abstract base class cho phép switch provider không cần sửa code chính
 
 ---
 
 ## Roadmap
 
-- [x] Dashboard overview và player analytics
-- [x] Match history và champion synergy
-- [x] Admin panel cơ bản
-- [ ] Tối ưu UI/UX và thêm filter nâng cao
-- [ ] Thêm text-to-SQL hoặc natural language query
-- [ ] Mở rộng phân tích player-level meta shift
-- [ ] Deploy production
+- [ ] Player-level meta shift detection
+- [ ] Thêm data LCK 2026 (real-time update)
+- [ ] Champion counter-pick analysis
+- [x] Deploy production (Neon + Render + Vercel)
+- [x] Text-to-SQL Agent
+- [x] Admin panel với import Excel
