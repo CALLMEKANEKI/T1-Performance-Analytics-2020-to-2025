@@ -22,6 +22,9 @@ const TOOLTIP_STYLE = {
   itemStyle: { color: "#F5F3EE" },
 };
 
+const totalGames = sideStats.reduce((s, t) => s + (t.total_games ?? 0), 0);
+const totalWins = sideStats.reduce((s, t) => s + (t.t1_wins ?? 0), 0);
+
 export default function Overview() {
   const [topPresence, setTopPresence] = useState([]);
   const [topEvents, setTopEvents] = useState([]);
