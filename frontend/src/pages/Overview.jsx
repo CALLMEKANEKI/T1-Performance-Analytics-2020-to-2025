@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, AlertTriangle, Trophy, Swords, Activity } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
 import { api } from "../lib/api";
@@ -21,9 +21,6 @@ const TOOLTIP_STYLE = {
   labelStyle: { color: "#F5F3EE" },
   itemStyle: { color: "#F5F3EE" },
 };
-
-const totalGames = sideStats.reduce((s, t) => s + (t.total_games ?? 0), 0);
-const totalWins = sideStats.reduce((s, t) => s + (t.t1_wins ?? 0), 0);
 
 export default function Overview() {
   const [topPresence, setTopPresence] = useState([]);
@@ -60,8 +57,15 @@ export default function Overview() {
     </div>
   );
 
-  const blueWR = sideStats.find((s) => s.side === "Blue")?.win_rate ?? 0;
-  const redWR = sideStats.find((s) => s.side === "Red")?.win_rate ?? 0;
+  const blueData = sideStats.find((s) => s.side === "Blue");
+  const redData = sideStats.find((s) => s.side === "Red");
+  const blueWR = blueData?.win_rate ?? 0;
+  const redWR = redData?.win_rate ?? 0;
+
+  // Tính tổng từ sideStats thay vì hardcode
+  const totalGames = sideStats.reduce((s, t) => s + (t.total_games ?? 0), 0);
+  const totalWins = sideStats.reduce((s, t) => s + (t.t1_wins ?? 0), 0);
+
   const pieData = sideStats.map((s) => ({
     name: s.side,
     value: s.total_games,
@@ -79,19 +83,19 @@ export default function Overview() {
         <StatCard label="Tổng số trận" value="903" sublabel="2020 — 2025" />
         <StatCard
           label="T1 win rate"
-          value={`${((totalWins / totalGames) * 100).toFixed(0)}%`}
-          sublabel={`${totalWins} thắng / ${totalGames - totalWins} thua`}
+          value={totalGames ? `${((totalWins / totalGames) * 100).toFixed(0)}%` : "—"}
+          sublabel={totalGames ? `${totalWins} thắng / ${totalGames - totalWins} thua` : "Loading..."}
           accent
         />
         <StatCard
           label="Blue side WR"
           value={`${(blueWR * 100).toFixed(0)}%`}
-          sublabel={`${sideStats.find(s => s.side === "Blue")?.total_games ?? 0} trận Blue side`}
+          sublabel={`${blueData?.total_games ?? 0} trận Blue side`}
         />
         <StatCard
           label="Red side WR"
           value={`${(redWR * 100).toFixed(0)}%`}
-          sublabel={`${sideStats.find(s => s.side === "Red")?.total_games ?? 0} trận Red side`}
+          sublabel={`${redData?.total_games ?? 0} trận Red side`}
         />
       </div>
 
@@ -211,12 +215,11 @@ export default function Overview() {
             </thead>
             <tbody className="divide-y divide-border/40">
               {h2h.slice(0, 10).map((row) => (
-                <tr key={row.opponent_id} className="hover:bg-surfaceHover/30 transition-colors group">
+                <tr key={row.opponent_id} className="hover:bg-surfaceHover/30 transition-colors">
                   <td className="px-4 py-3.5 text-sm font-medium text-text">{row.opponent_name}</td>
-                  <td className="px-4 py-3.5 text-sm text-center font-mono text-textMuted">
-                    <span className="text-text font-semibold">{row.t1_series_wins}</span>W
-                    <span className="mx-1 text-border">-</span>
-                    <span className="text-textMuted">{row.total_series - row.t1_series_wins}</span>L
+                  <td className="px-4 py-3.5 text-sm text-center font-mono">
+                    <span className="text-text font-semibold">{row.t1_series_wins}</span>
+                    <span className="text-textMuted">W - {row.total_series - row.t1_series_wins}L</span>
                   </td>
                   <td className="px-4 py-3.5 text-sm text-center font-mono text-textMuted">{row.total_games}</td>
                   <td className="px-4 py-3.5">
@@ -233,11 +236,9 @@ export default function Overview() {
                       <div className="w-24 h-1.5 bg-bg border border-border/50 rounded-full overflow-hidden shrink-0 hidden sm:block">
                         <div
                           className={`h-full rounded-full transition-all duration-500 ${
-                            row.game_win_rate >= 0.60
-                              ? "bg-win"
-                              : row.game_win_rate <= 0.45
-                              ? "bg-loss"
-                              : "bg-textMuted"
+                            row.game_win_rate >= 0.60 ? "bg-win"
+                            : row.game_win_rate <= 0.45 ? "bg-loss"
+                            : "bg-textMuted"
                           }`}
                           style={{ width: `${row.game_win_rate * 100}%` }}
                         />
