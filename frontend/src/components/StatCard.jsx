@@ -7,17 +7,22 @@ function useCountUp(target, duration = 1000) {
   const rafRef = useRef(null);
 
   useEffect(() => {
-    // Chỉ animate nếu target là số
     const num = parseFloat(String(target).replace(/[^0-9.]/g, ""));
     if (isNaN(num)) return;
+
+    // Detect số thập phân
+    const decimals = String(target).includes(".") 
+      ? (String(target).split(".")[1]?.length ?? 0) 
+      : 0;
 
     const start = performance.now();
     const animate = (now) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
-      // Easing: ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
-      setCurrent(Math.floor(eased * num));
+      const val = eased * num;
+      // Giữ decimal places thay vì floor
+      setCurrent(parseFloat(val.toFixed(decimals)));
       if (progress < 1) rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
@@ -27,12 +32,13 @@ function useCountUp(target, duration = 1000) {
   return current;
 }
 
-// Format lại value dựa trên string gốc (giữ %, ký tự suffix)
 function formatValue(original, current) {
   const str = String(original);
   if (str.includes("%")) return `${current}%`;
   if (str.includes(",")) return current.toLocaleString();
-  return String(current);
+  // Giữ nguyên decimal places của original
+  const decimals = str.includes(".") ? str.split(".")[1]?.length ?? 0 : 0;
+  return current.toFixed(decimals);
 }
 
 export default function StatCard({
