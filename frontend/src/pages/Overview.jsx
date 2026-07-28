@@ -74,9 +74,22 @@ export default function Overview() {
 
       <div className="grid grid-cols-4 gap-4 stagger-children">
         <StatCard label="Tổng số trận" value="903" sublabel="2020 — 2025" />
-        <StatCard label="T1 win rate" value="64%" sublabel="582 thắng / 321 thua" accent />
-        <StatCard label="Blue side WR" value={`${(blueWR * 100).toFixed(0)}%`} sublabel="437 trận Blue side" />
-        <StatCard label="Red side WR" value={`${(redWR * 100).toFixed(0)}%`} sublabel="466 trận Red side" />
+        <StatCard
+          label="T1 win rate"
+          value={`${((totalWins / totalGames) * 100).toFixed(0)}%`}
+          sublabel={`${totalWins} thắng / ${totalGames - totalWins} thua`}
+          accent
+        />
+        <StatCard
+          label="Blue side WR"
+          value={`${(blueWR * 100).toFixed(0)}%`}
+          sublabel={`${sideStats.find(s => s.side === "Blue")?.total_games ?? 0} trận Blue side`}
+        />
+        <StatCard
+          label="Red side WR"
+          value={`${(redWR * 100).toFixed(0)}%`}
+          sublabel={`${sideStats.find(s => s.side === "Red")?.total_games ?? 0} trận Red side`}
+        />
       </div>
 
       <Panel title="Win rate theo patch" subtitle="Chỉ hiển thị patch có ≥ 3 game" loading={loading}>
