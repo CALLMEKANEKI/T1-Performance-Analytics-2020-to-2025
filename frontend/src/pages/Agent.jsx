@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Code, Table, Loader2, Sparkles, Copy, Check } from "lucide-react";
+import { Send, Bot, User, Code, Table, Sparkles, Copy, Check } from "lucide-react";
 import clsx from "clsx";
-
-const BASE_URL = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api`;
+import { api } from "../lib/api";
 
 const EXAMPLE_QUESTIONS = [
   "Top 5 champion T1 pick nhiều nhất năm 2023?",
@@ -167,31 +166,18 @@ export default function Agent() {
     setMessages((prev) => [...prev, { role: "user", content: q }]);
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/agent/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: "Có lỗi xảy ra khi xử lý câu hỏi.",
-          error: data.detail || "Unknown error",
-        }]);
-      } else {
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: data.success ? "Đây là kết quả tôi tìm được:" : "Không thể tạo query cho câu hỏi này.",
-          sql: data.sql,
-          data: data.data,
-          error: data.error,
-        }]);
-      }
+      const data = await api.askAgent(q);
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: data.success ? "Đây là kết quả tôi tìm được:" : "Không thể tạo query cho câu hỏi này.",
+        sql: data.sql,
+        data: data.data,
+        error: data.error,
+      }]);
     } catch (e) {
       setMessages((prev) => [...prev, {
         role: "assistant",
-        content: "Không kết nối được backend.",
+        content: "Không kết nối được backend hoặc có lỗi xảy ra.",
         error: e.message,
       }]);
     } finally {

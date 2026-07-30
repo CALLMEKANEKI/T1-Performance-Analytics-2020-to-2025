@@ -109,6 +109,49 @@ def get_or_create_player(conn, nickname: str, full_name: str = None, position: s
     return ins.fetchone()[0]
 
 
+def get_or_create_series(conn, tournament_id: int, team_t1_id: int, opp_id: int, match_date, best_of: int) -> tuple[int, bool]:
+    """Lấy series_id. Trả về (series_id, is_created)."""
+    row = conn.execute(
+        text("""
+            SELECT id_series FROM series 
+            WHERE tournament_id = :tid AND team_opponent_id = :opp AND match_date = :mdate
+        """),
+        {"tid": tournament_id, "opp": opp_id, "mdate": match_date}
+    ).fetchone()
+    if row:
+        return row[0], False
+
+    res = conn.execute(
+        text("""
+            INSERT INTO series (tournament_id, team_t1_id, team_opponent_id, match_date, best_of)
+            VALUES (:tid, :t1, :opp, :mdate, :best)
+            RETURNING id_series
+        """),
+        {"tid": tournament_id, "t1": team_t1_id, "opp": opp_id, "mdate": match_date, "best": best_of}
+    )
+    return res.fetchone()[0], True
+
+
+def get_or_create_game(conn, series_id: int, game_number: int, patch: str, link: str, date_played) -> tuple[int, bool]:
+    """Lấy game_id. Trả về (game_id, is_created)."""
+    row = conn.execute(
+        text("SELECT id_game FROM games WHERE series_id = :sid AND game_number = :gnum"),
+        {"sid": series_id, "gnum": game_number}
+    ).fetchone()
+    if row:
+        return row[0], False
+
+    res = conn.execute(
+        text("""
+            INSERT INTO games (series_id, game_number, patch, link, date_played)
+            VALUES (:sid, :gnum, :patch, :link, :date)
+            RETURNING id_game
+        """),
+        {"sid": series_id, "gnum": game_number, "patch": patch, "link": link, "date": date_played}
+    )
+    return res.fetchone()[0], True
+
+
 # ── Main ETL ──────────────────────────────────────────────────────────────────
 
 def run_etl(excel_path: str, db_url: str):
@@ -141,14 +184,12 @@ def run_etl(excel_path: str, db_url: str):
                 get_or_create(conn, "teams", "id_team", "name", name, {"region": row.get("Region")})
 
         log.info("Seeding players (initial)...")
-        # Seed từ sheet player với team_id = NULL
         for _, row in df_players.iterrows():
             nickname = str(row.get("Nickname", row.iloc[3]))
             if nickname:
                 full_name = row.get("Name", row.iloc[2])
                 role = row.get("Role", row.iloc[4])
                 avatar = row.get("Avatar", row.iloc[1])
-                # Dùng get_or_create_player với team_id=None để insert nếu chưa có
                 get_or_create_player(conn, nickname, full_name, role, avatar, team_id=None)
 
         log.info("Seeding tournaments...")
@@ -175,34 +216,17 @@ def run_etl(excel_path: str, db_url: str):
         for (date_val, opponent_name, event_name), group in grouped:
             date_obj = pd.to_datetime(date_val).date()
             game_count = len(group)
-            best_of = game_count   # 1, 3, 5
+            best_of = game_count
 
-            # Tournament lookup
             year = int(group.iloc[0]['Year'])
             tournament_id = get_or_create(
                 conn, "tournaments", "id_tournament", "name", event_name,
                 {"year": year, "region": "KR"}
             )
 
-            # Opponent team
             opp_team_id = get_or_create(conn, "teams", "id_team", "name", opponent_name)
 
-            # Insert series (không có winner_team_id)
-            res = conn.execute(
-                text("""
-                    INSERT INTO series (tournament_id, team_t1_id, team_opponent_id, match_date, best_of)
-                    VALUES (:tid, :t1, :opp, :date, :best)
-                    RETURNING id_series
-                """),
-                {
-                    "tid": tournament_id,
-                    "t1": t1_id,
-                    "opp": opp_team_id,
-                    "date": date_obj,
-                    "best": best_of
-                }
-            )
-            series_id = res.fetchone()[0]
+            series_id, _ = get_or_create_series(conn, tournament_id, t1_id, opp_team_id, date_obj, best_of)
 
             game_number = 1
             for _, row in group.iterrows():
@@ -212,16 +236,13 @@ def run_etl(excel_path: str, db_url: str):
                 link = str(row.get('Link')) if pd.notna(row.get('Link')) else None
                 date_played = date_obj
 
-                # Insert game
-                res = conn.execute(
-                    text("""
-                        INSERT INTO games (series_id, game_number, patch, link, date_played)
-                        VALUES (:sid, :gnum, :patch, :link, :date)
-                        RETURNING id_game
-                    """),
-                    {"sid": series_id, "gnum": game_number, "patch": patch, "link": link, "date": date_played}
-                )
-                game_id = res.fetchone()[0]
+                game_id, game_created = get_or_create_game(conn, series_id, game_number, patch, link, date_played)
+                if not game_created:
+                    # Game đã tồn tại, không insert lại game_teams, game_players, bans
+                    game_number += 1
+                    total_games += 1
+                    processed += 1
+                    continue
 
                 # T1 game_team
                 t1_result = result

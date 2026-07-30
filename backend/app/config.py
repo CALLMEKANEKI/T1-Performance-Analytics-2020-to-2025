@@ -1,8 +1,31 @@
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
-class AgentConfig:
+class AppConfig:
+    # Environment & Database
+    ENV: str = os.getenv("ENV", "development")
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", 
+        "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
+    )
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        
+    T1_ID: int = int(os.getenv("T1_TEAM_ID", "1"))
+    
+    # CORS Origins (phân cách bằng dấu phẩy)
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://t1-performance-analytics-2020-to-20.vercel.app"
+        ).split(",")
+        if origin.strip()
+    ]
+
+class AgentConfig(AppConfig):
     # Provider chính: 'claude', 'openai', 'groq', 'openrouter', 'ollama'
     PROVIDER: str = os.getenv("AGENT_PROVIDER", "groq")
     

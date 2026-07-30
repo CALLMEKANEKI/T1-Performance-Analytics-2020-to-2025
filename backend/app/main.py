@@ -9,8 +9,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.config import AppConfig
 from app.core.cache import AppCache
-
 from app.api import model1, model2, champions, matches, stats, admin, agent as agent_router
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 cache = AppCache()
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
-# Thread pool riêng cho cache refresh (không chiếm event loop)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cache-refresh")
 
 
@@ -39,45 +38,31 @@ def _sync_refresh() -> None:
 async def lifespan(app: FastAPI):
     """
     Lifespan handler: khởi động nhanh, cache load bất đồng bộ trong nền.
-
-    Chiến lược:
-    - Server khởi động và sẵn sàng nhận request NGAY LẬP TỨC.
-    - CORS middleware hoạt động từ giây 0.
-    - Cache được load trong background thread (không block event loop).
-    - Endpoint /api/champions có DB fallback → trả data ngay cả khi cache chưa sẵn sàng.
     """
     logger.info("Server starting — cache sẽ load trong nền...")
-    # Kick off background refresh KHÔNG CHẶN startup
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     loop.run_in_executor(_executor, _sync_refresh)
     yield
-    # Cleanup khi shutdown
     _executor.shutdown(wait=False)
 
 
 # ─── App + Middleware ─────────────────────────────────────────────────────────
 app = FastAPI(title="T1 Analytics API", lifespan=lifespan)
 
-# CORS — phải đặt TRƯỚC khi mount static và include router
-origins = [
-    "https://t1-performance-analytics-2020-to-20.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-]
-
+# CORS — cấu hình các origin hợp lệ từ AppConfig
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=AppConfig.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Static files — mkdir trước để tránh crash nếu thư mục chưa tồn tại
+# Static files
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Cache vào app.state để các router truy cập được
+# Cache vào app.state
 app.state.cache = cache
 
 # ─── Routers ─────────────────────────────────────────────────────────────────
@@ -113,6 +98,6 @@ def health():
 @app.post("/api/refresh-cache")
 def refresh_cache(request: Request):
     """Rebuild cache trong background — không block response."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     loop.run_in_executor(_executor, _sync_refresh)
     return {"status": "cache refresh đang chạy trong nền"}

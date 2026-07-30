@@ -3,10 +3,40 @@ const rawApiUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").repl
 export const BASE_URL = `${rawApiUrl}/api`;
 export const STATIC_BASE = rawApiUrl;
 
-async function get(path) {
-  const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+async function request(path, options = {}) {
+  const res = await fetch(`${BASE_URL}${path}`, options);
+  if (!res.ok) {
+    let errorDetail = `API error ${res.status}: ${path}`;
+    try {
+      const errorData = await res.json();
+      if (errorData.detail) errorDetail = errorData.detail;
+    } catch (_) {}
+    throw new Error(errorDetail);
+  }
   return res.json();
+}
+
+async function get(path) {
+  return request(path);
+}
+
+async function post(path, body, isFormData = false) {
+  const options = { method: "POST" };
+  if (isFormData) {
+    options.body = body;
+  } else {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+  return request(path, options);
+}
+
+async function put(path, body) {
+  return request(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export const api = {
@@ -91,7 +121,10 @@ export const api = {
     return get(`/stats/synergy/top-pairs?${params.toString()}`);
   },
 
-  // Admin
+  // Agent API
+  askAgent: (question) => post("/agent/ask", { question }),
+
+  // Admin API
   admin: {
     champions: ({ search = "", page = 1, pageSize = 30 } = {}) =>
       get(`/admin/champions?search=${search}&page=${page}&page_size=${pageSize}`),
@@ -101,27 +134,18 @@ export const api = {
       get(`/admin/teams?search=${search}&page=${page}&page_size=${pageSize}`),
     tournaments: ({ search = "", page = 1, pageSize = 30 } = {}) =>
       get(`/admin/tournaments?search=${search}&page=${page}&page_size=${pageSize}`),
-    updateChampion: (id, body) =>
-      fetch(`${BASE_URL}/admin/champions/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then((r) => r.json()),
-    updatePlayer: (id, body) =>
-      fetch(`${BASE_URL}/admin/players/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then((r) => r.json()),
+    updateChampion: (id, body) => put(`/admin/champions/${id}`, body),
+    updatePlayer: (id, body) => put(`/admin/players/${id}`, body),
+    updateTeam: (id, body) => put(`/admin/teams/${id}`, body),
     previewImport: (file) => {
       const form = new FormData();
       form.append("file", file);
-      return fetch(`${BASE_URL}/admin/import/preview`, { method: "POST", body: form }).then((r) => r.json());
+      return post("/admin/import/preview", form, true);
     },
     import: (file) => {
       const form = new FormData();
       form.append("file", file);
-      return fetch(`${BASE_URL}/admin/import`, { method: "POST", body: form }).then((r) => r.json());
+      return post("/admin/import", form, true);
     },
   },
 };

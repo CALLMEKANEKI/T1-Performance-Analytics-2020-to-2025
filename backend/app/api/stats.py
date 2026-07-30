@@ -11,21 +11,21 @@ from typing import Optional
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Query, Request
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.pipeline.features import DB_URL
+from app.config import AppConfig
+from app.core.database import engine
 
 # Đường dẫn tới thư mục data (backend/data/)
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 router = APIRouter()
-T1_ID = 1
+T1_ID = AppConfig.T1_ID
 
 
 @router.get("/winrate-by-patch")
 def winrate_by_patch(request: Request):
     """Win rate T1 theo từng patch — cho line chart Overview."""
-    engine = create_engine(DB_URL)
     query = r"""
         SELECT
             g.patch,
@@ -44,15 +44,17 @@ def winrate_by_patch(request: Request):
         GROUP BY g.patch
         ORDER BY patch_num
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn winrate theo patch.")
 
 
 @router.get("/winrate-by-tournament")
 def winrate_by_tournament(request: Request):
     """Win rate T1 theo từng giải đấu — cho bar chart Overview."""
-    engine = create_engine(DB_URL)
     query = """
         SELECT
             t.id_tournament as tournament_id,
@@ -70,15 +72,17 @@ def winrate_by_tournament(request: Request):
         GROUP BY t.id_tournament, t.name, t.year
         ORDER BY t.year, t.name
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn winrate theo giải đấu.")
 
 
 @router.get("/winrate-by-side")
 def winrate_by_side(request: Request):
     """Win rate T1 theo Blue/Red side — cho donut chart."""
-    engine = create_engine(DB_URL)
     query = """
         SELECT
             gt.side,
@@ -92,14 +96,16 @@ def winrate_by_side(request: Request):
         GROUP BY gt.side
         ORDER BY gt.side
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn winrate theo side.")
 
 
 @router.get("/player-winrates")
 def player_winrates(request: Request):
-    engine = create_engine(DB_URL)
     query = """
         SELECT
             p.id_player,
@@ -125,9 +131,12 @@ def player_winrates(request: Request):
         GROUP BY p.id_player, p.ingame_name, p.position
         ORDER BY COUNT(gt.id_game_team) DESC, p.ingame_name
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn thống kê tuyển thủ.")
 
 
 @router.get("/player/{player_id}")
@@ -135,19 +144,15 @@ def player_detail(player_id: int, request: Request):
     """
     Chi tiết 1 player T1:
     - Stats tổng
-    - Champion pool (top 10 champions hay chơi nhất)
+    - Champion pool
     - Win rate theo năm
     """
-    engine = create_engine(DB_URL)
-
-    # Thông tin cơ bản
     info_query = """
         SELECT id_player, ingame_name, full_name, position, photo_url, country, birth_date
         FROM players
         WHERE id_player = :pid AND team_id = :t1_id
     """
 
-    # Champion pool
     champ_query = """
         SELECT
             c.id_champion,
@@ -166,7 +171,6 @@ def player_detail(player_id: int, request: Request):
         ORDER BY games_played DESC
     """
 
-    # Win rate theo năm
     yearly_query = """
         SELECT
             EXTRACT(YEAR FROM g.date_played) as year,
@@ -183,20 +187,24 @@ def player_detail(player_id: int, request: Request):
         ORDER BY year
     """
 
-    with engine.connect() as conn:
-        info = conn.execute(text(info_query), {"pid": player_id, "t1_id": T1_ID}).mappings().first()
-        champs = conn.execute(text(champ_query), {"pid": player_id, "t1_id": T1_ID}).mappings().all()
-        yearly = conn.execute(text(yearly_query), {"pid": player_id, "t1_id": T1_ID}).mappings().all()
+    try:
+        with engine.connect() as conn:
+            info = conn.execute(text(info_query), {"pid": player_id, "t1_id": T1_ID}).mappings().first()
+            champs = conn.execute(text(champ_query), {"pid": player_id, "t1_id": T1_ID}).mappings().all()
+            yearly = conn.execute(text(yearly_query), {"pid": player_id, "t1_id": T1_ID}).mappings().all()
 
-    if not info:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Player không tồn tại")
+        if not info:
+            raise HTTPException(status_code=404, detail="Player không tồn tại")
 
-    return {
-        "info": dict(info),
-        "champion_pool": [dict(r) for r in champs],
-        "yearly_stats": [dict(r) for r in yearly],
-    }
+        return {
+            "info": dict(info),
+            "champion_pool": [dict(r) for r in champs],
+            "yearly_stats": [dict(r) for r in yearly],
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn chi tiết tuyển thủ.")
 
 
 # ─── Helper: convert NaN → None cho JSON safe ────────────────────────────────
@@ -222,10 +230,6 @@ CLUSTER_LABELS = {0: "Core Roster", 1: "Outlier", 2: "Veteran"}
 
 @router.get("/player-clusters")
 def player_clusters():
-    """
-    Load model3_clusters.parquet và trả về danh sách players
-    với cluster label, PCA coordinates và stats.
-    """
     parquet_path = DATA_DIR / "model3_clusters.parquet"
     if not parquet_path.exists():
         raise HTTPException(
@@ -234,11 +238,8 @@ def player_clusters():
         )
 
     df = pd.read_parquet(parquet_path)
-
-    # Thêm cluster_label dạng string
     df["cluster_label"] = df["cluster"].map(CLUSTER_LABELS).fillna("Unknown")
 
-    # Chọn các cột cần thiết (bỏ những cột không tồn tại)
     desired_cols = [
         "player_id", "player_name", "cluster", "cluster_label",
         "PC1", "PC2", "overall_winrate", "total_games", "position",
@@ -258,7 +259,6 @@ SYNERGY_COLS = [
 
 
 def _load_synergy(by_year: bool = False) -> pd.DataFrame:
-    """Load đúng file parquet theo chế độ."""
     path = SYNERGY_BYYEAR_PATH if by_year else SYNERGY_ALLTIME_PATH
     if not path.exists():
         raise HTTPException(
@@ -274,21 +274,14 @@ def synergy(
     min_games: int = Query(5, ge=1, description="Số game tối thiểu của cặp"),
     champion: Optional[str] = Query(None, description="Lọc theo champion_a hoặc champion_b"),
 ):
-    """
-    Trả về danh sách champion pairs sort theo lift DESC (max 100).
-    Nếu có year → dùng by_year parquet; ngược lại dùng alltime.
-    """
     use_year = year is not None
     df = _load_synergy(by_year=use_year)
 
-    # Filter theo năm
     if use_year and "year" in df.columns:
         df = df[df["year"] == year]
 
-    # Filter min_games
     df = df[df["co_games"] >= min_games]
 
-    # Filter theo champion (so sánh case-insensitive)
     if champion:
         champ_lower = champion.strip().lower()
         mask = (
@@ -298,7 +291,6 @@ def synergy(
         )
         df = df[mask]
 
-    # Chọn cột output
     extra_cols = ["year"] if (use_year and "year" in df.columns) else []
     cols = [c for c in SYNERGY_COLS + extra_cols if c in df.columns]
 
@@ -313,11 +305,6 @@ def synergy_top_pairs(
     min_games: int = Query(5, ge=1, description="Số game tối thiểu của cặp"),
     year: Optional[int] = Query(None, description="Lọc theo năm (2020–2025)"),
 ):
-    """
-    Top N synergy hoặc anti-synergy pairs (all-time hoặc theo năm).
-    mode='synergy' → sort lift DESC
-    mode='anti'    → sort lift ASC
-    """
     if mode not in ("synergy", "anti"):
         raise HTTPException(status_code=400, detail="mode phải là 'synergy' hoặc 'anti'")
 
@@ -334,10 +321,10 @@ def synergy_top_pairs(
     df = df[cols].sort_values("lift", ascending=ascending).head(limit)
     return _df_to_records(df)
 
+
 @router.get("/head-to-head")
 def head_to_head(request: Request):
     """Lịch sử đối đầu T1 vs tất cả đội — cho Overview."""
-    engine = create_engine(DB_URL)
     query = """
         WITH series_results AS (
             SELECT
@@ -366,15 +353,17 @@ def head_to_head(request: Request):
         GROUP BY t.id_team, t.name
         ORDER BY total_games DESC
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn lịch sử đối đầu.")
 
 
 @router.get("/opponents")
 def list_opponents(request: Request):
     """List tất cả đội đã từng gặp T1 — cho dropdown filter."""
-    engine = create_engine(DB_URL)
     query = """
         SELECT
             t.id_team,
@@ -388,18 +377,16 @@ def list_opponents(request: Request):
         GROUP BY t.id_team, t.name
         ORDER BY total_games DESC
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"t1_id": T1_ID}).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn danh sách đối thủ.")
 
 
 @router.get("/player/{player_id}/vs-opponent")
 def player_vs_opponent(player_id: int, opponent_id: int, request: Request):
-    """
-    Champions player đó dùng khi T1 gặp opponent cụ thể.
-    Dùng Bayesian smoothing alpha=2 để tránh noise ít game.
-    """
-    engine = create_engine(DB_URL)
     query = """
         SELECT
             c.name as champion_name,
@@ -421,10 +408,13 @@ def player_vs_opponent(player_id: int, opponent_id: int, request: Request):
         ORDER BY games_played DESC
         LIMIT 15
     """
-    with engine.connect() as conn:
-        rows = conn.execute(text(query), {
-            "player_id": player_id,
-            "t1_id": T1_ID,
-            "opponent_id": opponent_id,
-        }).mappings().all()
-    return [dict(r) for r in rows]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {
+                "player_id": player_id,
+                "t1_id": T1_ID,
+                "opponent_id": opponent_id,
+            }).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Không thể truy vấn thông số player vs đối thủ.")

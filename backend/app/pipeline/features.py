@@ -221,5 +221,7 @@ if __name__ == "__main__":
     print(feature_df.head(3))
     
     # Save để dùng lại, không phải tính lại mỗi lần
-    feature_df.to_parquet("data/features_model1.parquet", index=False)
-    print("\nSaved to data/features_model1.parquet")
+    out_path = Path(__file__).resolve().parents[2] / "data" / "features_model1.parquet"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    feature_df.to_parquet(out_path, index=False)
+    print(f"\nSaved to {out_path}")

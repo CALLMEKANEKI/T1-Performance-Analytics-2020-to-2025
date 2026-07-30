@@ -14,9 +14,11 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from app.pipeline.features import DB_URL, load_raw_data
+from app.config import AppConfig
+from app.core.database import engine
+from app.pipeline.features import load_raw_data
 from app.pipeline.model2_meta_shift import (
     build_champion_timeseries,
     detect_meta_shifts,
@@ -81,9 +83,8 @@ class AppCache:
     # ─── PRIVATE HELPERS ─────────────────────────────────────────────────────
 
     def _load_champions(self) -> bool:
-        """Load bảng champions từ DB. Trả về True nếu thành công."""
+        """Load bảng champions từ DB bằng shared engine pool. Trả về True nếu thành công."""
         try:
-            engine = create_engine(DB_URL)
             with engine.connect() as conn:
                 result = conn.execute(
                     text("SELECT id_champion AS champion_id, name, image_url FROM champions")
@@ -121,8 +122,9 @@ class AppCache:
     def _load_model2(self) -> bool:
         """Rebuild champion time series + meta shift detection từ DB."""
         try:
-            picks_df = load_raw_data(DB_URL)
-            bans_df = load_ban_data(DB_URL)
+            db_url = AppConfig.DATABASE_URL
+            picks_df = load_raw_data(db_url)
+            bans_df = load_ban_data(db_url)
             ts = build_champion_timeseries(picks_df, bans_df)
             shift_df = detect_meta_shifts(ts)
             merged = merge_consecutive_events(shift_df)
