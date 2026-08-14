@@ -10,8 +10,6 @@ Thiết kế an toàn:
 
 import logging
 import pickle
-import sys
-from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import text
@@ -28,8 +26,7 @@ from app.pipeline.model2_meta_shift import (
 
 logger = logging.getLogger(__name__)
 
-BACKEND_DIR = Path(__file__).resolve().parents[2]
-MODEL1_PATH = BACKEND_DIR / "data" / "model1_lgbm.pkl"
+MODEL1_PATH = AppConfig.MODEL1_PATH
 
 # DataFrame rỗng dùng làm fallback khi DB chưa sẵn sàng
 _EMPTY_CHAMPIONS = pd.DataFrame(columns=["champion_id", "name", "image_url"])
@@ -104,15 +101,52 @@ class AppCache:
             return False
 
     def _load_model1(self) -> bool:
-        """Load model1 artifact từ pickle file."""
+        """Load model1 artifact từ pickle file.
+
+        Safer unpickling: catch UnpicklingError and verify the artifact shape
+        to avoid loading unexpected objects.
+        """
         try:
-            if MODEL1_PATH.exists():
-                with open(MODEL1_PATH, "rb") as f:
-                    self.model1_artifact = pickle.load(f)
-                logger.info("Model1 artifact loaded từ %s", MODEL1_PATH)
-            else:
+            if not MODEL1_PATH.exists():
                 self.model1_artifact = None
                 logger.warning("Model1 pickle không tồn tại tại %s", MODEL1_PATH)
+                return True
+            if MODEL1_PATH.suffix != ".pkl":
+                logger.error("MODEL1_PATH phải là file .pkl: %s", MODEL1_PATH)
+                self.model1_artifact = None
+                return False
+
+            with open(MODEL1_PATH, "rb") as f:
+                raw = f.read()
+
+            try:
+                artifact = pickle.loads(raw)
+            except pickle.UnpicklingError as e:
+                logger.error("Model1 pickle unpickling failed: %s", e, exc_info=True)
+                self.model1_artifact = None
+                return False
+
+            # Basic verification: prefer dict artifact with feature_columns, or
+            # a fitted model object exposing a predict method. If neither,
+            # treat as invalid to avoid executing arbitrary objects.
+            valid = False
+            if isinstance(artifact, dict):
+                valid = True
+                if "feature_columns" not in artifact:
+                    logger.warning(
+                        "Loaded model1 artifact is dict but missing 'feature_columns' key."
+                    )
+            elif hasattr(artifact, "predict"):
+                # Likely a fitted sklearn / lightgbm model
+                valid = True
+
+            if not valid:
+                logger.error("Model1 artifact has unexpected type: %s", type(artifact))
+                self.model1_artifact = None
+                return False
+
+            self.model1_artifact = artifact
+            logger.info("Model1 artifact loaded từ %s", MODEL1_PATH)
             return True
         except Exception as exc:
             logger.error("_load_model1 FAILED: %s", exc, exc_info=True)

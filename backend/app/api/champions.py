@@ -1,31 +1,13 @@
 import logging
-import math
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import text
 
 from app.core.database import engine
+from app.utils.json_safe import df_to_records
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def clean_val(val):
-    """Làm sạch từng giá trị: Chuyển NaN, inf, -inf thành None (null trong JSON)."""
-    if isinstance(val, float):
-        if math.isnan(val) or math.isinf(val):
-            return None
-    return val
-
-
-def clean_records(records: list) -> list:
-    """Quét qua danh sách các bản ghi (dict) để làm sạch toàn bộ dữ liệu trước khi serialize sang JSON."""
-    if not records:
-        return []
-    return [
-        {k: clean_val(v) for k, v in record.items()}
-        for record in records
-    ]
 
 
 @router.get("/champions")
@@ -39,8 +21,7 @@ def list_champions(request: Request):
 
     # Lớp 1: Phục vụ từ cache
     if cache.is_champions_ready():
-        raw_records = cache.champions.to_dict(orient="records")
-        return clean_records(raw_records)
+        return df_to_records(cache.champions)
 
     # Lớp 2: Cache rỗng → fallback truy vấn DB trực tiếp
     logger.warning("/api/champions: cache chưa sẵn sàng, fallback sang DB trực tiếp.")
@@ -58,7 +39,7 @@ def list_champions(request: Request):
         cache.champions = pd.DataFrame(raw_records)
         logger.info("/api/champions: fallback thành công, đã cập nhật cache (%d rows).", len(raw_records))
 
-        return clean_records(raw_records)
+        return df_to_records(cache.champions)
 
     except HTTPException:
         raise

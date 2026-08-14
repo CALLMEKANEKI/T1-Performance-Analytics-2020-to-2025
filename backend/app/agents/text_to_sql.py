@@ -34,17 +34,57 @@ class TextToSQLAgent:
             return sql_match.group(1).strip()
         return response.strip()
 
+    def _validate_sql(self, sql: str) -> tuple[bool, str | None]:
+        """Chỉ cho phép một câu SELECT đơn, chặn multi-statement và keyword nguy hiểm.
+
+        Improves validation by removing SQL comments and string literals before
+        checking for semicolons and dangerous keywords, reducing bypass via
+        comments/strings.
+        """
+        if not sql or not sql.strip():
+            return False, "Query rỗng."
+
+        s = sql.strip()
+
+        # Remove fenced code blocks if LLM included them
+        s = re.sub(r"```.*?```", "", s, flags=re.DOTALL)
+
+        # Strip SQL comments (single-line -- and block /* */)
+        no_comments = re.sub(r"--.*?$", "", s, flags=re.MULTILINE)
+        no_comments = re.sub(r"/\*.*?\*/", "", no_comments, flags=re.DOTALL)
+
+        # Remove string literals to avoid semicolons or keywords inside quotes
+        no_strings = re.sub(r"('(?:''|[^'])*')|(\"(?:\"\"|[^\"])*\")", "", no_comments)
+
+        # Normalize whitespace for checks
+        cleaned = no_strings.strip()
+        if not cleaned:
+            return False, "Query rỗng sau khi loại comments/strings."
+
+        # Disallow multiple statements (semicolons outside strings/comments)
+        if ";" in cleaned:
+            return False, "Chỉ cho phép một câu lệnh SELECT (không cho phép ';')."
+
+        upper = cleaned.upper()
+        if not upper.startswith("SELECT"):
+            return False, "Chỉ cho phép SELECT query."
+
+        dangerous = [
+            "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE",
+            "GRANT", "REVOKE", "EXEC", "EXECUTE", "COPY", "INTO", "MERGE",
+            "CALL", "DO", "SET", "SHOW",
+        ]
+        for kw in dangerous:
+            if re.search(rf"\b{kw}\b", upper):
+                return False, f"Query chứa từ khoá bị cấm: {kw}"
+        return True, None
+
     def _execute_sql(self, sql: str):
         """Thực thi SQL, chỉ cho phép SELECT."""
-        sql_upper = sql.strip().upper()
-        if not sql_upper.startswith("SELECT"):
-            return False, None, "Chỉ cho phép SELECT query."
-        
-        dangerous = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "TRUNCATE"]
-        for kw in dangerous:
-            if kw in sql_upper:
-                return False, None, f"Query chứa từ khoá bị cấm: {kw}"
-        
+        ok, err = self._validate_sql(sql)
+        if not ok:
+            return False, None, err
+
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(text(sql))

@@ -22,6 +22,10 @@ services:
     container_name: t1_backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      ENV: development
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      CACHE_WARMUP_BLOCKING: "false"
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     ports:
       - "8000:8000"

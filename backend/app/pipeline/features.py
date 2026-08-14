@@ -1,18 +1,16 @@
 # backend/app/pipeline/features.py
-import os
+import gc
+from pathlib import Path
+
 import pandas as pd
-from sqlalchemy import create_engine, text  # Import thêm 'text' từ sqlalchemy
-from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
 
-load_dotenv()
+from app.config import AppConfig
 
-_db_url = os.getenv("DATABASE_URL")
-if _db_url:
-    if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
-    DB_URL = _db_url
-else:
-    DB_URL = "postgresql://t1_user:t1_password@localhost:5433/t1_analytics"
+# ─── Constants ───────────────────────────────────────────────────────────────
+BAYESIAN_ALPHA = 3  # Smoothing prior (kéo về 0.5 khi ít data)
+
+DB_URL = AppConfig.DATABASE_URL
 
 def load_raw_data(db_url: str = DB_URL) -> pd.DataFrame:
     engine = create_engine(db_url)
@@ -73,8 +71,7 @@ def compute_champion_rolling_winrate(df: pd.DataFrame, window_days: int = 84) ->
             wins = past["is_win"].sum()
 
             # Bayesian smoothing: kéo về 0.5 khi ít data
-            alpha = 3
-            smoothed = (wins + alpha) / (picks + 2 * alpha)
+            smoothed = (wins + BAYESIAN_ALPHA) / (picks + 2 * BAYESIAN_ALPHA)
             rolling_wr.append({
                 "id_game": row["id_game"],
                 "champion_id": champ_id,
@@ -108,14 +105,13 @@ def compute_player_rolling_winrate(df: pd.DataFrame, window_days: int = 84) -> p
             # Overall player form
             p_picks = len(past_window)
             p_wins = past_window["is_win"].sum()
-            alpha = 3
-            player_wr = (p_wins + alpha) / (p_picks + 2 * alpha)
+            player_wr = (p_wins + BAYESIAN_ALPHA) / (p_picks + 2 * BAYESIAN_ALPHA)
 
             # Player on this specific champion
             past_champ = past_window[past_window["champion_id"] == row["champion_id"]]
             pc_picks = len(past_champ)
             pc_wins = past_champ["is_win"].sum()
-            player_champ_wr = (pc_wins + alpha) / (pc_picks + 2 * alpha)
+            player_champ_wr = (pc_wins + BAYESIAN_ALPHA) / (pc_picks + 2 * BAYESIAN_ALPHA)
 
             results.append({
                 "id_game": row["id_game"],
@@ -196,6 +192,11 @@ def build_model1_features(db_url: str = DB_URL) -> pd.DataFrame:
     for other in [t1_agg, opp_agg, side_df[["id_game", "t1_is_blue"]], 
                   patch_df, t1_champ_onehot, opp_champ_onehot]:
         feature_df = feature_df.merge(other, on="id_game", how="left")
+
+    # Giải phóng bộ nhớ các DataFrames trung gian
+    del df, champ_features, player_features, t1_games, t1_agg, opp_agg
+    del side_df, patch_df, t1_picks, t1_champ_onehot, opp_picks, opp_champ_onehot
+    gc.collect()
 
     # Encode patch thành number (10.1 → 101, 14.5 → 145)
     feature_df["patch_num"] = (

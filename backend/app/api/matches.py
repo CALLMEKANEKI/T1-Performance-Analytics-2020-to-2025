@@ -7,7 +7,7 @@ Match History endpoints:
 """
 
 import logging
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from fastapi import APIRouter, HTTPException, Query
 
 from app.config import AppConfig
@@ -193,20 +193,20 @@ def get_game_detail(game_id: int):
             if not teams:
                 raise HTTPException(status_code=404, detail="Game không tồn tại")
 
-            lineups = conn.execute(
-                text("""
-                    SELECT
-                        gp.game_team_id, gp.pick_order,
-                        p.id_player, p.ingame_name, p.position,
-                        c.id_champion, c.name AS champion_name
-                    FROM game_players gp
-                    JOIN players p ON gp.player_id = p.id_player
-                    JOIN champions c ON gp.champion_id = c.id_champion
-                    WHERE gp.game_team_id = ANY(:team_ids)
-                    ORDER BY gp.game_team_id, gp.pick_order
-                """),
-                {"team_ids": [t["id_game_team"] for t in teams]},
-            ).mappings().all()
+            team_ids = tuple(t["id_game_team"] for t in teams)
+            lineups_stmt = text("""
+                SELECT
+                    gp.game_team_id, gp.pick_order,
+                    p.id_player, p.ingame_name, p.position,
+                    c.id_champion, c.name AS champion_name
+                FROM game_players gp
+                JOIN players p ON gp.player_id = p.id_player
+                JOIN champions c ON gp.champion_id = c.id_champion
+                WHERE gp.game_team_id IN :team_ids
+                ORDER BY gp.game_team_id, gp.pick_order
+            """).bindparams(bindparam("team_ids", expanding=True))
+
+            lineups = conn.execute(lineups_stmt, {"team_ids": team_ids}).mappings().all()
 
             bans = conn.execute(
                 text("""

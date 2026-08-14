@@ -17,17 +17,19 @@ import tempfile
 from typing import Optional
 
 import pandas as pd
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.config import AppConfig
+from app.core.cache_jobs import submit_cache_refresh
 from app.core.database import engine
+from app.core.deps import verify_admin_key
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_admin_key)])
 
 
 # ── Import ────────────────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ async def preview_import(file: UploadFile = File(...)):
 
 
 @router.post("/import")
-async def import_excel(file: UploadFile = File(...)):
+async def import_excel(request: Request, file: UploadFile = File(...)):
     """
     Upload Excel → chạy ETL → trả về số records đã import.
     """
@@ -88,6 +90,7 @@ async def import_excel(file: UploadFile = File(...)):
                     (SELECT COUNT(*) FROM tournaments) as tournaments
             """)).mappings().first()
             counts = dict(row) if row else {}
+        submit_cache_refresh(request.app.state.cache)
         return {"status": "success", "record_counts": counts}
     except Exception as exc:
         logger.error("Failed to query post-import counts: %s", exc, exc_info=True)
@@ -98,7 +101,7 @@ async def import_excel(file: UploadFile = File(...)):
 
 @router.get("/champions")
 def list_champions(
-    search: str = "",
+    search: str = Query("", max_length=100),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0)
 ):
@@ -120,7 +123,7 @@ def list_champions(
 
 @router.get("/players")
 def list_players(
-    search: str = "",
+    search: str = Query("", max_length=100),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0)
 ):
@@ -150,7 +153,7 @@ def list_players(
 
 @router.get("/teams")
 def list_teams(
-    search: str = "",
+    search: str = Query("", max_length=100),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0)
 ):
@@ -172,7 +175,7 @@ def list_teams(
 
 @router.get("/tournaments")
 def list_tournaments_admin(
-    search: str = "",
+    search: str = Query("", max_length=200),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0)
 ):

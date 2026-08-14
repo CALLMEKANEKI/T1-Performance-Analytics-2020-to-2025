@@ -1,6 +1,6 @@
-"""
-Model 2: Meta shift time series theo champion, bucket 2 tuần.
-Chạy từ thư mục backend: python -m app/pipeline/model2_meta_shift.py
+﻿"""
+Model 2: Meta shift time series theo champion, bucket 2 tuáº§n.
+Cháº¡y tá»« thÆ° má»¥c backend: python -m app/pipeline/model2_meta_shift.py
 """
 
 from pathlib import Path
@@ -17,9 +17,15 @@ OUTPUT_PATH = BACKEND_DIR / "data" / "model2_timeseries.parquet"
 SHIFT_OUTPUT_PATH = BACKEND_DIR / "data" / "model2_shift_events.parquet"
 MERGED_OUTPUT_PATH = BACKEND_DIR / "data" / "model2_merged_events.parquet"
 
+# â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+MIN_BASELINE_BUCKETS = 6   # Sá»‘ bucket cáº§n thiáº¿t trÆ°á»›c khi tÃ­nh z-score
+MIN_VOLUME = 5             # Tá»•ng pick+ban tá»‘i thiá»ƒu á»Ÿ bucket hiá»‡n táº¡i
+MIN_BASELINE_TOTAL = 15    # Tá»•ng volume trong baseline
+Z_SCORE_THRESHOLD = 2.0    # NgÆ°á»¡ng composite z-score Ä‘á»ƒ cÃ´ng nháº­n shift event
+
 
 def load_ban_data(db_url: str = DB_URL) -> pd.DataFrame:
-    """Lấy ban theo game + champion (meta presence, không riêng T1)."""
+    """Láº¥y ban theo game + champion (meta presence, khÃ´ng riÃªng T1)."""
     engine = create_engine(db_url)
     query = text("""
         SELECT
@@ -39,7 +45,7 @@ def load_ban_data(db_url: str = DB_URL) -> pd.DataFrame:
 
 def assign_two_week_bucket(dates: pd.Series, origin: pd.Timestamp) -> pd.Series:
     """
-    Floor date_played về mốc 2 tuần, mốc bắt đầu từ ngày nhỏ nhất trong data.
+    Floor date_played vá» má»‘c 2 tuáº§n, má»‘c báº¯t Ä‘áº§u tá»« ngÃ y nhá» nháº¥t trong data.
     """
     origin = origin.normalize()
     days_since = (dates - origin).dt.days
@@ -52,9 +58,9 @@ def build_champion_timeseries(
     bans_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Build time series (champion_id, bucket) với picks, bans, wins, win_rate, presence_rate.
+    Build time series (champion_id, bucket) vá»›i picks, bans, wins, win_rate, presence_rate.
     """
-    # Mốc bucket chung cho picks và bans
+    # Má»‘c bucket chung cho picks vÃ  bans
     min_date = min(picks_df["date_played"].min(), bans_df["date_played"].min())
 
     picks = picks_df[["id_game", "date_played", "champion_id", "is_win"]].copy()
@@ -63,7 +69,7 @@ def build_champion_timeseries(
     bans = bans_df[["id_game", "date_played", "champion_id"]].copy()
     bans["bucket"] = assign_two_week_bucket(bans["date_played"], min_date)
 
-    # Tổng số game trong mỗi bucket (dùng cho presence_rate)
+    # Tá»•ng sá»‘ game trong má»—i bucket (dÃ¹ng cho presence_rate)
     games = picks_df[["id_game", "date_played"]].drop_duplicates()
     games["bucket"] = assign_two_week_bucket(games["date_played"], min_date)
     total_games = (
@@ -72,7 +78,7 @@ def build_champion_timeseries(
         .rename(columns={"id_game": "total_games_in_bucket"})
     )
 
-    # Picks + wins (chỉ từ draft pick, không tính ban)
+    # Picks + wins (chá»‰ tá»« draft pick, khÃ´ng tÃ­nh ban)
     pick_stats = (
         picks.groupby(["champion_id", "bucket"], as_index=False)
         .agg(picks=("is_win", "count"), wins=("is_win", "sum"))
@@ -85,7 +91,7 @@ def build_champion_timeseries(
         .rename(columns={"size": "bans"})
     )
 
-    # Gộp picks và bans (champion có thể chỉ pick hoặc chỉ ban trong bucket)
+    # Gá»™p picks vÃ  bans (champion cÃ³ thá»ƒ chá»‰ pick hoáº·c chá»‰ ban trong bucket)
     ts = pick_stats.merge(ban_stats, on=["champion_id", "bucket"], how="outer")
     ts["picks"] = ts["picks"].fillna(0).astype(int)
     ts["wins"] = ts["wins"].fillna(0).astype(int)
@@ -93,7 +99,7 @@ def build_champion_timeseries(
 
     ts = ts.merge(total_games, on="bucket", how="left")
 
-    # Raw win rate và presence trong meta
+    # Raw win rate vÃ  presence trong meta
     ts["win_rate"] = ts.apply(
         lambda r: r["wins"] / r["picks"] if r["picks"] > 0 else float("nan"),
         axis=1,
@@ -116,7 +122,7 @@ def build_champion_timeseries(
 
 
 def detect_meta_shifts(ts: pd.DataFrame) -> pd.DataFrame:
-    """Tính z-score và flag các bucket có dấu hiệu meta shift."""
+    """TÃ­nh z-score vÃ  flag cÃ¡c bucket cÃ³ dáº¥u hiá»‡u meta shift."""
     ts = ts.sort_values(["champion_id", "bucket"]).copy()
     ts["z_winrate"] = np.nan
     ts["z_presence"] = np.nan
@@ -126,8 +132,8 @@ def detect_meta_shifts(ts: pd.DataFrame) -> pd.DataFrame:
     for champion_id, group in ts.groupby("champion_id", sort=False):
         group = group.sort_values("bucket").copy()
         for idx in range(len(group)):
-            if idx < 6:
-                # Chưa đủ baseline 6 bucket trước => bỏ qua early buckets
+            if idx < MIN_BASELINE_BUCKETS:
+                # ChÆ°a Ä‘á»§ baseline 6 bucket trÆ°á»›c => bá» qua early buckets
                 continue
 
             baseline = group.iloc[idx - 6 : idx]
@@ -152,11 +158,11 @@ def detect_meta_shifts(ts: pd.DataFrame) -> pd.DataFrame:
                 z_presence = (current_presence - baseline_mean_presence) / baseline_std_presence
 
             composite_score = float(np.sqrt(z_winrate**2 + z_presence**2))
-            min_volume = (group.iloc[idx]["picks"] + group.iloc[idx]["bans"]) >= 5
+            min_volume = (group.iloc[idx]["picks"] + group.iloc[idx]["bans"]) >= MIN_VOLUME
             baseline_total_volume = (baseline["picks"] + baseline["bans"]).sum()
-            has_enough_baseline = baseline_total_volume >= 15
+            has_enough_baseline = baseline_total_volume >= MIN_BASELINE_TOTAL
 
-            is_shift_event = (composite_score > 2.0) and min_volume and has_enough_baseline
+            is_shift_event = (composite_score > Z_SCORE_THRESHOLD) and min_volume and has_enough_baseline
 
             ts.loc[group.index[idx], "z_winrate"] = z_winrate
             ts.loc[group.index[idx], "z_presence"] = z_presence
@@ -167,7 +173,7 @@ def detect_meta_shifts(ts: pd.DataFrame) -> pd.DataFrame:
 
 
 def merge_consecutive_events(shift_df: pd.DataFrame) -> pd.DataFrame:
-    """Gom các bucket shift liên tiếp thành 1 event group."""
+    """Gom cÃ¡c bucket shift liÃªn tiáº¿p thÃ nh 1 event group."""
     event_df = shift_df[shift_df["is_shift_event"]].copy()
     if event_df.empty:
         return pd.DataFrame(
@@ -214,98 +220,27 @@ def merge_consecutive_events(shift_df: pd.DataFrame) -> pd.DataFrame:
     return merged_df.sort_values("max_composite_score", ascending=False).reset_index(drop=True)
 
 
+def main() -> None:
+    """Build model2 timeseries, detect shifts and write parquet outputs."""
+    print("Building Model2 champion timeseries...")
+    try:
+        picks_df = load_raw_data(DB_URL)
+        bans_df = load_ban_data(DB_URL)
+
+        ts = build_champion_timeseries(picks_df, bans_df)
+        ts.to_parquet(OUTPUT_PATH, index=False)
+        print(f"Wrote timeseries to {OUTPUT_PATH}")
+
+        shift_df = detect_meta_shifts(ts)
+        shift_df.to_parquet(SHIFT_OUTPUT_PATH, index=False)
+        print(f"Wrote shift events to {SHIFT_OUTPUT_PATH}")
+
+        merged = merge_consecutive_events(shift_df)
+        merged.to_parquet(MERGED_OUTPUT_PATH, index=False)
+        print(f"Wrote merged events to {MERGED_OUTPUT_PATH}")
+    except Exception as exc:
+        print("Error building model2 artifacts:", exc)
+
+
 if __name__ == "__main__":
-    print("Loading pick data...")
-    picks_df = load_raw_data()
-    print(f"  {len(picks_df)} pick rows, {picks_df['id_game'].nunique()} games")
-
-    print("Loading ban data...")
-    bans_df = load_ban_data()
-    print(f"  {len(bans_df)} ban rows")
-
-    print("\nBuilding champion meta time series (2-week buckets)...")
-    ts = build_champion_timeseries(picks_df, bans_df)
-
-    print("\nDetecting meta shifts...")
-    shift_df = detect_meta_shifts(ts)
-    merged_events = merge_consecutive_events(shift_df)
-
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SHIFT_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    MERGED_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    ts.to_parquet(OUTPUT_PATH, index=False)
-    shift_df.to_parquet(SHIFT_OUTPUT_PATH, index=False)
-    merged_events.to_parquet(MERGED_OUTPUT_PATH, index=False)
-    print(f"Saved time series to {OUTPUT_PATH}")
-    print(f"Saved shift events to {SHIFT_OUTPUT_PATH}")
-    print(f"Saved merged events to {MERGED_OUTPUT_PATH}")
-    print(f"Shape: {ts.shape}")
-
-    shift_events = shift_df[shift_df["is_shift_event"]].copy()
-    print(f"\nTong so shift events detect duoc: {len(shift_events)}")
-    print(f"Tong so merged events: {len(merged_events)} (so voi 302 events goc)")
-
-    if not shift_events.empty:
-        engine = create_engine(DB_URL)
-        query = text("SELECT id_champion, name FROM champions")
-        with engine.connect() as conn:
-            result = conn.execute(query)
-            champion_names = pd.DataFrame(result.mappings().all())
-        champion_names = champion_names.rename(
-            columns={"id_champion": "champion_id", "name": "champion_name"}
-        )
-        top_shift_events = (
-            shift_events.sort_values("composite_score", ascending=False)
-            .head(15)
-            .merge(champion_names, on="champion_id", how="left")
-        )
-        print("\nTop 15 shift events:")
-        print(
-            top_shift_events[
-                [
-                    "champion_name",
-                    "champion_id",
-                    "bucket",
-                    "win_rate",
-                    "presence_rate",
-                    "composite_score",
-                ]
-            ].to_string(index=False)
-        )
-
-    if not merged_events.empty:
-        merged_with_names = merged_events.merge(champion_names, on="champion_id", how="left")
-        print("\nTop 15 merged events:")
-        print(
-            merged_with_names[
-                [
-                    "champion_name",
-                    "champion_id",
-                    "start_bucket",
-                    "end_bucket",
-                    "duration_buckets",
-                    "max_composite_score",
-                    "peak_bucket",
-                ]
-            ].head(15).to_string(index=False)
-        )
-
-    n_buckets = ts["bucket"].nunique()
-    print(f"\nTong so bucket (2-week periods): {n_buckets}")
-
-    # Top 5 champion presence cao nhất (trung bình qua các bucket có xuất hiện)
-    top_presence = (
-        ts.groupby("champion_id", as_index=False)["presence_rate"]
-        .mean()
-        .sort_values("presence_rate", ascending=False)
-        .head(5)
-    )
-    print("\nTop 5 champion co presence_rate trung binh cao nhat:")
-    print(top_presence.to_string(index=False))
-
-    # Time series champion id=14 (pick nhieu nhat)
-    champ_id = 14
-    champ_ts = ts[ts["champion_id"] == champ_id].copy()
-    print(f"\nTime series day du champion_id={champ_id} ({len(champ_ts)} buckets):")
-    print(champ_ts.to_string(index=False))
-    
+    main()

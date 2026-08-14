@@ -15,6 +15,7 @@ from sqlalchemy import text
 
 from app.config import AppConfig
 from app.core.database import engine
+from app.utils.json_safe import df_to_records
 
 # Đường dẫn tới thư mục data (backend/data/)
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -216,12 +217,7 @@ def _nan_to_none(val):
 
 
 def _df_to_records(df: pd.DataFrame) -> list[dict]:
-    """DataFrame → list[dict], replace NaN bằng None."""
-    records = df.where(df.notna(), other=None).to_dict(orient="records")
-    return [
-        {k: _nan_to_none(v) for k, v in row.items()}
-        for row in records
-    ]
+    return df_to_records(df)
 
 
 # ─── Model 3: Player Clustering ───────────────────────────────────────────────
@@ -236,8 +232,10 @@ def player_clusters():
             status_code=404,
             detail="model3_clusters.parquet chưa được generate. Chạy model3_player_clustering.py trước."
         )
-
-    df = pd.read_parquet(parquet_path)
+    try:
+        df = pd.read_parquet(parquet_path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Không thể đọc file {parquet_path.name}: {exc}")
     df["cluster_label"] = df["cluster"].map(CLUSTER_LABELS).fillna("Unknown")
 
     desired_cols = [
@@ -265,7 +263,10 @@ def _load_synergy(by_year: bool = False) -> pd.DataFrame:
             status_code=404,
             detail=f"{path.name} chưa được generate. Chạy model4_synergy_network.py trước."
         )
-    return pd.read_parquet(path)
+    try:
+        return pd.read_parquet(path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Không thể đọc file {path.name}: {exc}")
 
 
 @router.get("/synergy")
