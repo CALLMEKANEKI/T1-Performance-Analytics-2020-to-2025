@@ -17,6 +17,17 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: t1_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend
     container_name: t1_backend
@@ -25,6 +36,7 @@ services:
       ENV: development
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       CACHE_WARMUP_BLOCKING: "false"
+      REDIS_URL: redis://redis:6379/0
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
     ports:
@@ -34,6 +46,8 @@ services:
       - ./data:/data         # access CSV files từ backend
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 

@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, Zap, Shield, Swords, Filter } from "lucide-react";
 import clsx from "clsx";
 import { api } from "../lib/api";
+import { CHART_COLORS } from "../lib/chartUtils";
 import Panel from "../components/Panel";
 import StatCard from "../components/StatCard";
 
 const TYPE_COLORS = {
-  carry_damage: "#E0144C",
-  tank_engage: "#3B82F6",
-  utility_support: "#A78BFA",
-  assassin_skirmisher: "#F59E0B",
-  poke_control: "#34D399",
-  unknown: "#7C7C8A",
+  carry_damage: CHART_COLORS.accent,
+  tank_engage: CHART_COLORS.blue,
+  utility_support: CHART_COLORS.purple,
+  assassin_skirmisher: CHART_COLORS.amber,
+  poke_control: CHART_COLORS.win,
+  unknown: CHART_COLORS.textMuted,
 };
 
 const TYPE_LABELS = {
@@ -29,7 +30,11 @@ function TypeBadge({ type }) {
   return (
     <span
       className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-      style={{ color, backgroundColor: `${color}18`, border: `1px solid ${color}30` }}
+      style={{
+        color,
+        backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 19%, transparent)`,
+      }}
     >
       {label}
     </span>
@@ -243,7 +248,10 @@ export default function Synergy() {
               <div
                 key={type}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
-                style={{ borderColor: `${color}30`, backgroundColor: `${color}10` }}
+                style={{
+                  borderColor: `color-mix(in srgb, ${color} 19%, transparent)`,
+                  backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
+                }}
               >
                 <span className="text-xs font-medium" style={{ color }}>{TYPE_LABELS[type]}</span>
                 <span className="text-xs font-mono text-textMuted">{count}</span>

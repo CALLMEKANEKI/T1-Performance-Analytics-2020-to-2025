@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, STATIC_BASE, getChampionImageUrl } from "../lib/api";
+import { CHART_COLORS, LEGEND_PROPS, TOOLTIP_STYLE, axisProps, legendFormatter } from "../lib/chartUtils";
 import Panel from "../components/Panel";
 import StatCard from "../components/StatCard";
 import {
@@ -11,32 +12,21 @@ import clsx from "clsx";
 const POSITION_ORDER = ["TOP", "JUNGLER", "MID", "ADC", "SUPPORT"];
 
 const POSITION_COLORS = {
-  TOP: "#F59E0B",
-  JUNGLER: "#34D399",
-  MID: "#3B82F6",
-  ADC: "#E0144C",
-  SUPPORT: "#A78BFA",
-  default: "#7C7C8A",
+  TOP: CHART_COLORS.amber,
+  JUNGLER: CHART_COLORS.win,
+  MID: CHART_COLORS.blue,
+  ADC: CHART_COLORS.accent,
+  SUPPORT: CHART_COLORS.purple,
+  default: CHART_COLORS.textMuted,
 };
 
 const CLUSTER_COLORS = {
-  "Core Roster": "#E0144C",
-  "Veteran": "#34D399",
-  "Outlier": "#7C7C8A",
+  "Core Roster": CHART_COLORS.accent,
+  "Veteran": CHART_COLORS.win,
+  "Outlier": CHART_COLORS.textMuted,
 };
 
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    backgroundColor: "#1A1A24",
-    border: "1px solid #2A2A38",
-    borderRadius: 8,
-    fontSize: 12,
-    color: "#F5F3EE",
-  },
-  labelStyle: { color: "#F5F3EE" },
-  itemStyle: { color: "#F5F3EE" },
-  cursor: { fill: "rgba(255,255,255,0.04)" },
-};
+
 
 function PlayerAvatar({ name, size = "md" }) {
   const [imgError, setImgError] = useState(false);
@@ -79,10 +69,13 @@ export default function Players() {
   const [loadingVs, setLoadingVs] = useState(false);
 
   useEffect(() => {
+    const ctrl = new AbortController();
+    const signal = ctrl.signal;
+
     Promise.all([
-      api.playerWinrates(),
+      api.playerWinrates({ signal }),
       api.playerClusters(),
-      api.opponents(),
+      api.opponents({ signal }),
     ])
       .then(([pData, cData, oData]) => {
         const sorted = [...pData].sort((a, b) => {
@@ -98,7 +91,16 @@ export default function Players() {
         const faker = sorted.find((p) => p.ingame_name === "Faker");
         if (faker) setSelected(faker);
       })
+      .catch((e) => {
+        if (e?.name === "AbortError") return;
+        // show a lightweight fallback to empty list
+        setPlayers([]);
+        setClusters([]);
+        setOpponents([]);
+      })
       .finally(() => setLoadingList(false));
+
+    return () => ctrl.abort();
   }, []);
 
   // Fetch vs-opponent data when both player and opponent are selected
@@ -106,19 +108,26 @@ export default function Players() {
     if (!selected || !selectedOpponent) { setVsData([]); return; }
     setLoadingVs(true);
     setVsData([]);
-    api.playerVsOpponent(selected.id_player, selectedOpponent.id_team)
+    const ctrl = new AbortController();
+    const signal = ctrl.signal;
+    api.playerVsOpponent(selected.id_player, selectedOpponent.id_team, { signal })
       .then(setVsData)
-      .catch(() => setVsData([]))
+      .catch((e) => { if (e?.name !== "AbortError") setVsData([]); })
       .finally(() => setLoadingVs(false));
+    return () => ctrl.abort();
   }, [selected, selectedOpponent]);
 
   useEffect(() => {
     if (!selected) return;
     setLoadingDetail(true);
     setDetail(null);
-    api.playerDetail(selected.id_player)
+    const ctrl = new AbortController();
+    const signal = ctrl.signal;
+    api.playerDetail(selected.id_player, { signal })
       .then(setDetail)
+      .catch((e) => { if (e?.name !== "AbortError") setDetail(null); })
       .finally(() => setLoadingDetail(false));
+    return () => ctrl.abort();
   }, [selected]);
 
   const allChamps = detail?.champion_pool ?? [];
@@ -139,7 +148,7 @@ export default function Players() {
   // Scatter plot data từ clusters
   const scatterData = clusters.map((c) => ({
     ...c,
-    color: CLUSTER_COLORS[c.cluster_label] ?? "#7C7C8A",
+    color: CLUSTER_COLORS[c.cluster_label] ?? CHART_COLORS.textMuted,
   }));
 
   const clusterGroups = ["Core Roster", "Veteran", "Outlier"].map((label) => ({
@@ -253,11 +262,11 @@ export default function Players() {
                 <Panel title="Win rate theo năm">
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={yearlyData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" />
-                      <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#7C7C8A" }} tickLine={false} axisLine={{ stroke: "#2A2A38" }} />
-                      <YAxis domain={[40, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: "#7C7C8A" }} tickLine={false} axisLine={{ stroke: "#2A2A38" }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} />
+                      <XAxis dataKey="year" {...axisProps(11)} />
+                      <YAxis domain={[40, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11, fill: CHART_COLORS.textMuted }} tickLine={false} axisLine={{ stroke: CHART_COLORS.border }} />
                       <Tooltip {...TOOLTIP_STYLE} formatter={(v, _, p) => [`${v}% (${p.payload.games} games)`, "Win rate"]} />
-                      <Line type="monotone" dataKey="win_rate" stroke="#E0144C" strokeWidth={2} dot={{ fill: "#E0144C", r: 4 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" dataKey="win_rate" stroke={CHART_COLORS.accent} strokeWidth={2} dot={{ fill: CHART_COLORS.accent, r: 4 }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </Panel>
@@ -285,24 +294,20 @@ export default function Players() {
                     <div style={{ height: Math.max(260, champData.length * 32) }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={champData} layout="vertical" margin={{ top: 4, right: 60, left: 80, bottom: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" horizontal={false} />
-                          <XAxis type="number" tick={{ fontSize: 10, fill: "#7C7C8A" }} axisLine={{ stroke: "#2A2A38" }} tickLine={false} />
-                          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "#F5F3EE" }} axisLine={{ stroke: "#2A2A38" }} tickLine={false} width={76} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} horizontal={false} />
+                          <XAxis type="number" tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }} axisLine={{ stroke: CHART_COLORS.border }} tickLine={false} />
+                          <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: CHART_COLORS.text }} axisLine={{ stroke: CHART_COLORS.border }} tickLine={false} width={76} />
                           <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => {
                             if (name === "wins") return [`${v} thắng`, "Thắng"];
                             if (name === "losses") return [`${v} thua`, "Thua"];
                             if (name === "win_rate") return [`${v}%`, "Win rate"];
                             return [v, name];
                           }} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => (
-                            <span className="text-xs text-textMuted">
-                              {v === "wins" ? "Thắng" : v === "losses" ? "Thua" : "Win rate"}
-                            </span>
-                          )} />
-                          <Bar dataKey="wins" stackId="a" fill="#34D399" fillOpacity={0.85} name="wins" />
-                          <Bar dataKey="losses" stackId="a" fill="#E0144C" fillOpacity={0.6} radius={[0, 3, 3, 0]} name="losses" />
-                          <YAxis yAxisId="wr" orientation="right" type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: "#7C7C8A" }} axisLine={{ stroke: "#2A2A38" }} tickLine={false} width={44} />
-                          <Line yAxisId="wr" type="monotone" dataKey="win_rate" stroke="#F59E0B" strokeWidth={1.5} dot={false} name="win_rate" />
+                              <Legend {...LEGEND_PROPS} formatter={legendFormatter({ wins: "Thắng", losses: "Thua", win_rate: "Win rate" })} />
+                          <Bar dataKey="wins" stackId="a" fill={CHART_COLORS.win} fillOpacity={0.85} name="wins" />
+                          <Bar dataKey="losses" stackId="a" fill={CHART_COLORS.accent} fillOpacity={0.6} radius={[0, 3, 3, 0]} name="losses" />
+                          <YAxis yAxisId="wr" orientation="right" type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }} axisLine={{ stroke: CHART_COLORS.border }} tickLine={false} width={44} />
+                          <Line yAxisId="wr" type="monotone" dataKey="win_rate" stroke={CHART_COLORS.amber} strokeWidth={1.5} dot={false} name="win_rate" />
                         </ComposedChart>
                       </ResponsiveContainer>
                     </div>
@@ -341,29 +346,29 @@ export default function Players() {
 
             <ResponsiveContainer width="100%" height={380}>
               <ScatterChart margin={{ top: 20, right: 20, left: -10, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} />
                 <XAxis
                   type="number"
                   dataKey="PC1"
                   name="PC1"
-                  tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                  tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }}
                   tickLine={false}
-                  axisLine={{ stroke: "#2A2A38" }}
-                  label={{ value: "PC1 (Career Experience)", position: "bottom", offset: 0, fill: "#7C7C8A", fontSize: 11 }}
+                  axisLine={{ stroke: CHART_COLORS.border }}
+                  label={{ value: "PC1 (Career Experience)", position: "bottom", offset: 0, fill: CHART_COLORS.textMuted, fontSize: 11 }}
                 />
                 <YAxis
                   type="number"
                   dataKey="PC2"
                   name="PC2"
-                  tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                  tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }}
                   tickLine={false}
-                  axisLine={{ stroke: "#2A2A38" }}
-                  label={{ value: "PC2", angle: -90, position: "insideLeft", fill: "#7C7C8A", fontSize: 11 }}
+                  axisLine={{ stroke: CHART_COLORS.border }}
+                  label={{ value: "PC2", angle: -90, position: "insideLeft", fill: CHART_COLORS.textMuted, fontSize: 11 }}
                 />
                 <ZAxis range={[80, 80]} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#1A1A24", border: "1px solid #2A2A38", borderRadius: 8, fontSize: 12, color: "#F5F3EE" }}
-                  cursor={{ stroke: "#2A2A38" }}
+                  contentStyle={TOOLTIP_STYLE.contentStyle}
+                  cursor={{ stroke: CHART_COLORS.border }}
                   content={({ active, payload }) => {
                     if (!active || !payload?.[0]) return null;
                     const d = payload[0].payload;
@@ -386,11 +391,7 @@ export default function Players() {
                     fillOpacity={0.85}
                   />
                 ))}
-                <Legend
-                  iconType="circle"
-                  iconSize={8}
-                  formatter={(v) => <span className="text-xs text-textMuted">{v}</span>}
-                />
+                <Legend {...LEGEND_PROPS} formatter={legendFormatter()} />
               </ScatterChart>
             </ResponsiveContainer>
           </Panel>

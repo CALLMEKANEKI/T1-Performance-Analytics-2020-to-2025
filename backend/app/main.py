@@ -81,6 +81,9 @@ def health():
             "champions_count": len(cache.champions) if cache.is_champions_ready() else 0,
             "timeseries_ready": cache.timeseries is not None,
             "model1_ready": cache.model1_artifact is not None,
+            "refresh_in_progress": cache.refresh_started_at is not None,
+            "last_refresh_at": cache.last_refresh_at,
+            "last_refresh_ok": cache.last_refresh_ok,
         },
     }
 

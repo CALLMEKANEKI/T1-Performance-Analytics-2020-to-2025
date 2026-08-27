@@ -28,6 +28,9 @@ function CopyButton({ text }) {
 
 function SqlBlock({ sql }) {
   const [expanded, setExpanded] = useState(false);
+
+  // Sanitize control characters to reduce risk of layout breakage or injected control sequences.
+  const sanitize = (s) => (s || "").replace(/[\u0000-\u001f\u007f]/g, "");
   return (
     <div className="mt-2">
       <button
@@ -40,7 +43,7 @@ function SqlBlock({ sql }) {
       {expanded && (
         <div className="mt-2 relative group">
           <pre className="bg-bg rounded-xl px-4 py-3 text-xs text-win font-mono overflow-x-auto border border-border">
-            {sql}
+            {sanitize(sql)}
           </pre>
           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <CopyButton text={sql} />

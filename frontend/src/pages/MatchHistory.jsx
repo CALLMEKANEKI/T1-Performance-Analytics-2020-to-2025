@@ -31,14 +31,25 @@ function WinBadge({ wins, total }) {
 
 function SeriesExpanded({ seriesId }) {
   const [games, setGames] = useState(null);
+  const [error, setError] = useState(null);
   const [activeGameId, setActiveGameId] = useState(null);
 
   useEffect(() => {
-    api.seriesDetail(seriesId).then((d) => {
-      setGames(d.games ?? []);
-      if (d.games?.length) setActiveGameId(d.games[0].id_game);
-    });
+    const controller = new AbortController();
+    setGames(null);
+    setError(null);
+    api.seriesDetail(seriesId, { signal: controller.signal })
+      .then((d) => {
+        setGames(d.games ?? []);
+        if (d.games?.length) setActiveGameId(d.games[0].id_game);
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") setError(err?.message || "Không tải được series.");
+      });
+    return () => controller.abort();
   }, [seriesId]);
+
+  if (error) return <div className="px-5 py-4 border-t border-border text-sm text-loss">{error}</div>;
 
   if (!games) return (
     <div className="px-5 py-4 border-t border-border">
@@ -124,15 +135,21 @@ function SeriesRow({ series }) {
 function TournamentCard({ tournament }) {
   const [open, setOpen] = useState(false);
   const [series, setSeries] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleToggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !series) {
-      const data = await api.matches({ tournamentId: tournament.id_tournament, pageSize: 100 });
-      setSeries(data);
-    }
-  };
+  useEffect(() => {
+    if (!open || series) return undefined;
+    const controller = new AbortController();
+    setError(null);
+    api.matches({ tournamentId: tournament.id_tournament, pageSize: 100 }, { signal: controller.signal })
+      .then(setSeries)
+      .catch((err) => {
+        if (err?.name !== "AbortError") setError(err?.message || "Không tải được series.");
+      });
+    return () => controller.abort();
+  }, [open, series, tournament.id_tournament]);
+
+  const handleToggle = () => setOpen((value) => !value);
 
   const wins = tournament.t1_wins ?? 0;
   const total = tournament.total_games ?? 0;
@@ -170,7 +187,9 @@ function TournamentCard({ tournament }) {
 
       {open && (
         <div className="bg-bg/30 border-t border-border px-4 py-3 space-y-2 animate-fade-in">
-          {!series ? (
+          {error ? (
+            <div className="text-xs text-loss py-3">{error}</div>
+          ) : !series ? (
             <div className="space-y-2 py-2">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="skeleton h-12 rounded-xl" />
@@ -195,10 +214,12 @@ export default function MatchHistory() {
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [tournamentOptions, setTournamentOptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fetch dropdown options khi date thay đổi - dùng api.matchesTournaments()
   useEffect(() => {
-    api.matchesTournaments({ startDate, endDate, page: 1, pageSize: 100 })
+    const controller = new AbortController();
+    api.matchesTournaments({ startDate, endDate, page: 1, pageSize: 100 }, { signal: controller.signal })
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setTournamentOptions(list);
@@ -206,25 +227,33 @@ export default function MatchHistory() {
           setSelectedTournamentId("");
         }
       })
-      .catch((err) => console.error("Lỗi lấy danh sách giải đấu:", err));
+      .catch((err) => {
+        if (err?.name !== "AbortError") setError(err?.message || "Không tải được danh sách giải đấu.");
+      });
+    return () => controller.abort();
   }, [startDate, endDate]);
 
   // Load danh sách tournaments chính - dùng api.matchesTournaments()
   const load = useCallback(() => {
+    const controller = new AbortController();
     setLoading(true);
+    setError(null);
     api.matchesTournaments({
       startDate,
       endDate,
       tournamentId: selectedTournamentId,
       page,
       pageSize: PAGE_SIZE,
-    })
+    }, { signal: controller.signal })
       .then((data) => setTournaments(Array.isArray(data) ? data : []))
-      .catch((err) => console.error("Lỗi lấy dữ liệu trận đấu:", err))
+      .catch((err) => {
+        if (err?.name !== "AbortError") setError(err?.message || "Không tải được dữ liệu trận đấu.");
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [page, startDate, endDate, selectedTournamentId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => load(), [load]);
 
   return (
     <div className="space-y-6">
@@ -283,6 +312,7 @@ export default function MatchHistory() {
       </div>
 
       {/* Tournament list */}
+      {error && <div className="text-sm text-loss bg-loss/10 border border-loss/30 rounded-xl px-4 py-3">{error}</div>}
       <div className="space-y-3">
         {loading
           ? [...Array(4)].map((_, i) => (

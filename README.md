@@ -108,7 +108,7 @@ Agent: SELECT c.name, COUNT(*) ... → Azir (42), Xayah (28), Sejuani (27)...
 **Config qua `.env`:**
 ```
 AGENT_PROVIDER=groq
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=qwen/qwen3-32b
 ```
 
 ---

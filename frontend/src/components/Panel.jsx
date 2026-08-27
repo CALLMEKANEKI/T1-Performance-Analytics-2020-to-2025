@@ -11,7 +11,7 @@ export default function Panel({
 }) {
   const variantStyles = {
     default: "bg-surface border border-border",
-    accent: "bg-surface border border-border border-l-2 border-l-accent shadow-[0_0_12px_rgba(224,20,76,0.08)]",
+    accent: "bg-surface border border-border border-l-2 border-l-accent shadow-accent",
     glass: "backdrop-blur-sm bg-surface/80 border border-border/50",
   };
 

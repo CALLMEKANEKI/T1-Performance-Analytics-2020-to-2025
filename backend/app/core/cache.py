@@ -9,7 +9,9 @@ Thiết kế an toàn:
 """
 
 import logging
+import hashlib
 import pickle
+import time
 
 import pandas as pd
 from sqlalchemy import text
@@ -40,6 +42,9 @@ class AppCache:
         self.merged_events: pd.DataFrame | None = None
         # Khởi tạo với DataFrame rỗng thay vì None → tránh AttributeError khi DB chưa sẵn sàng
         self.champions: pd.DataFrame = _EMPTY_CHAMPIONS.copy()
+        self.refresh_started_at: float | None = None
+        self.last_refresh_at: float | None = None
+        self.last_refresh_ok: bool | None = None
 
     # ─── PUBLIC API ──────────────────────────────────────────────────────────
 
@@ -50,6 +55,7 @@ class AppCache:
         Mỗi bước được thực hiện độc lập: 1 bước fail không ảnh hưởng bước khác.
         """
         success = True
+        self.refresh_started_at = time.time()
 
         # Bước 1: Load danh sách champion (nhẹ, thực hiện trước)
         if not self._load_champions():
@@ -68,6 +74,9 @@ class AppCache:
         else:
             logger.warning("AppCache.refresh() hoàn thành một phần — xem log để biết chi tiết.")
 
+        self.last_refresh_at = time.time()
+        self.last_refresh_ok = success
+        self.refresh_started_at = None
         return success
 
     def refresh_champions(self) -> bool:
@@ -111,6 +120,10 @@ class AppCache:
                 self.model1_artifact = None
                 logger.warning("Model1 pickle không tồn tại tại %s", MODEL1_PATH)
                 return True
+            if not MODEL1_PATH.is_file() or MODEL1_PATH.stat().st_size == 0:
+                self.model1_artifact = None
+                logger.error("Model1 path không phải file hợp lệ hoặc file rỗng: %s", MODEL1_PATH)
+                return False
             if MODEL1_PATH.suffix != ".pkl":
                 logger.error("MODEL1_PATH phải là file .pkl: %s", MODEL1_PATH)
                 self.model1_artifact = None
@@ -118,6 +131,14 @@ class AppCache:
 
             with open(MODEL1_PATH, "rb") as f:
                 raw = f.read()
+
+            expected_hash = getattr(AppConfig, "MODEL1_SHA256", "")
+            if expected_hash:
+                actual_hash = hashlib.sha256(raw).hexdigest()
+                if actual_hash != expected_hash:
+                    self.model1_artifact = None
+                    logger.error("Model1 SHA-256 không khớp: expected=%s actual=%s", expected_hash, actual_hash)
+                    return False
 
             try:
                 artifact = pickle.loads(raw)

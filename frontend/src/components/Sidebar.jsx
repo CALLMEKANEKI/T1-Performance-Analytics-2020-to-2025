@@ -37,7 +37,7 @@ function NavItem({ to, label, icon: Icon, end }) {
             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
             "transition-all duration-200",
             isActive
-              ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-[11px]"
+              ? "bg-accent/10 text-accent border-l-2 border-accent -ml-px pl-3"
               : "text-textMuted hover:text-text hover:bg-surfaceHover"
           )
         }
@@ -49,7 +49,7 @@ function NavItem({ to, label, icon: Icon, end }) {
       {/* Tooltip */}
       {showTooltip && (
         <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 pointer-events-none">
-          <div className="bg-bg border border-border rounded-lg px-3 py-1.5 text-xs text-text whitespace-nowrap shadow-lg">
+          <div className="bg-bg border border-border rounded-md px-3 py-1.5 text-xs text-text whitespace-nowrap shadow-lg">
             {label}
           </div>
         </div>

@@ -1,6 +1,7 @@
 """Background cache refresh jobs."""
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from app.core.cache import AppCache
@@ -20,6 +21,9 @@ def sync_refresh(cache: AppCache) -> bool:
             logger.warning("Background cache refresh hoàn thành một phần (xem log chi tiết).")
         return ok
     except Exception as exc:
+        cache.refresh_started_at = None
+        cache.last_refresh_at = time.time()
+        cache.last_refresh_ok = False
         logger.error("Background cache refresh thất bại: %s", exc, exc_info=True)
         return False
 

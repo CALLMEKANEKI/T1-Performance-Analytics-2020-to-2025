@@ -5,20 +5,11 @@ import {
 } from "recharts";
 import { Search, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { api } from "../lib/api";
+import { CHART_COLORS, LEGEND_PROPS, TOOLTIP_STYLE, legendFormatter } from "../lib/chartUtils";
 import Panel from "../components/Panel";
 import clsx from "clsx";
 
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    backgroundColor: "#1A1A24",
-    border: "1px solid #2A2A38",
-    borderRadius: 8,
-    fontSize: 12,
-    color: "#F5F3EE",
-  },
-  labelStyle: { color: "#F5F3EE" },
-  itemStyle: { color: "#F5F3EE" },
-};
+
 
 function LiftBadge({ lift }) {
   if (!lift) return null;
@@ -156,33 +147,27 @@ export default function MetaShifts() {
                   <>
                     <ResponsiveContainer width="100%" height={280}>
                       <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" />
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} />
                         <XAxis
                           dataKey="bucket"
-                          tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                          tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }}
                           tickLine={false}
-                          axisLine={{ stroke: "#2A2A38" }}
+                          axisLine={{ stroke: CHART_COLORS.border }}
                           interval={Math.floor(chartData.length / 8)}
                         />
                         <YAxis
-                          tick={{ fontSize: 10, fill: "#7C7C8A" }}
+                          tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }}
                           tickLine={false}
-                          axisLine={{ stroke: "#2A2A38" }}
+                          axisLine={{ stroke: CHART_COLORS.border }}
                           unit="%"
                         />
                         <Tooltip {...TOOLTIP_STYLE} />
-                        <Legend
-                          iconType="circle"
-                          iconSize={8}
-                          formatter={(v) => <span className="text-xs text-textMuted">
-                            {v === "win_rate" ? "Win rate" : "Presence rate"}
-                          </span>}
-                        />
+                        <Legend {...LEGEND_PROPS} formatter={legendFormatter({ win_rate: "Win rate", presence_rate: "Presence rate" })} />
                         {[...shiftBuckets].map((b) => (
                           <ReferenceLine
                             key={b}
                             x={b}
-                            stroke="#E0144C"
+                            stroke={CHART_COLORS.accent}
                             strokeDasharray="4 2"
                             strokeOpacity={0.6}
                             strokeWidth={1.5}
@@ -191,7 +176,7 @@ export default function MetaShifts() {
                         <Line
                           type="monotone"
                           dataKey="win_rate"
-                          stroke="#34D399"
+                          stroke={CHART_COLORS.win}
                           strokeWidth={2}
                           dot={false}
                           name="win_rate"
@@ -200,7 +185,7 @@ export default function MetaShifts() {
                         <Line
                           type="monotone"
                           dataKey="presence_rate"
-                          stroke="#E0144C"
+                          stroke={CHART_COLORS.accent}
                           strokeWidth={2}
                           dot={false}
                           name="presence_rate"

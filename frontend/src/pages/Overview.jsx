@@ -4,23 +4,14 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
-import { api } from "../lib/api";
+import { api, BASE_URL } from "../lib/api";
+import { CHART_COLORS, LEGEND_PROPS, TOOLTIP_STYLE, legendFormatter } from "../lib/chartUtils";
 import StatCard from "../components/StatCard";
 import Panel from "../components/Panel";
 
-const COLORS = { Blue: "#3B82F6", Red: "#E0144C" };
+const COLORS = { Blue: CHART_COLORS.blue, Red: CHART_COLORS.accent };
 
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    backgroundColor: "#1A1A24",
-    border: "1px solid #2A2A38",
-    borderRadius: 8,
-    fontSize: 12,
-    color: "#F5F3EE",
-  },
-  labelStyle: { color: "#F5F3EE" },
-  itemStyle: { color: "#F5F3EE" },
-};
+
 
 export default function Overview() {
   const [topPresence, setTopPresence] = useState([]);
@@ -32,22 +23,30 @@ export default function Overview() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const ctrl = new AbortController();
+    const signal = ctrl.signal;
+
     Promise.all([
-      api.model2TopPresence(5),
-      api.model2ShiftEvents({ limit: 5 }),
-      api.statsByPatch(),
-      api.statsBySide(),
-      api.headToHead(),
+      api.model2TopPresence(5, { signal }),
+      api.model2ShiftEvents({ limit: 5 }, { signal }),
+      api.statsByPatch({ signal }),
+      api.statsBySide({ signal }),
+      api.headToHead({ signal }),
     ])
       .then(([presence, events, patch, side, headToHeadData]) => {
         setTopPresence(presence);
         setTopEvents(events);
-        setPatchStats(patch.filter((p) => p.total_games >= 3));
-        setSideStats(side);
-        setH2h(headToHeadData);
+        setPatchStats((patch || []).filter((p) => p.total_games >= 3));
+        setSideStats(side || []);
+        setH2h(headToHeadData || []);
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        if (e?.name === "AbortError") return;
+        setError(e.message || String(e));
+      })
       .finally(() => setLoading(false));
+
+    return () => ctrl.abort();
   }, []);
 
   if (error) return (
@@ -104,15 +103,15 @@ export default function Overview() {
           <AreaChart data={patchStats} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="wrGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#E0144C" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#E0144C" stopOpacity={0} />
+                <stop offset="5%" stopColor={CHART_COLORS.accent} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={CHART_COLORS.accent} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" />
-            <XAxis dataKey="patch" tick={{ fontSize: 10, fill: "#7C7C8A" }} tickLine={false} axisLine={{ stroke: "#2A2A38" }} interval={Math.floor(patchStats.length / 10)} />
-            <YAxis domain={[0, 1]} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 10, fill: "#7C7C8A" }} tickLine={false} axisLine={{ stroke: "#2A2A38" }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} />
+            <XAxis dataKey="patch" tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }} tickLine={false} axisLine={{ stroke: CHART_COLORS.border }} interval={Math.floor(patchStats.length / 10)} />
+            <YAxis domain={[0, 1]} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }} tickLine={false} axisLine={{ stroke: CHART_COLORS.border }} />
             <Tooltip {...TOOLTIP_STYLE} formatter={(v, _, p) => [`${(v * 100).toFixed(1)}% (${p.payload.total_games} games)`, "Win rate"]} />
-            <Area type="monotone" dataKey="win_rate" stroke="#E0144C" strokeWidth={2} fill="url(#wrGradient)" dot={false} activeDot={{ r: 4, fill: "#E0144C" }} name="Win rate" />
+            <Area type="monotone" dataKey="win_rate" stroke={CHART_COLORS.accent} strokeWidth={2} fill="url(#wrGradient)" dot={false} activeDot={{ r: 4, fill: CHART_COLORS.accent }} name="Win rate" />
           </AreaChart>
         </ResponsiveContainer>
       </Panel>
@@ -124,7 +123,7 @@ export default function Overview() {
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} dataKey="value" paddingAngle={3} animationBegin={0} animationDuration={800}>
                 {pieData.map((entry) => <Cell key={entry.name} fill={COLORS[entry.name]} />)}
               </Pie>
-              <Legend iconType="circle" iconSize={8} formatter={(v, e) => <span className="text-xs text-textMuted">{v} — WR {(e.payload.win_rate * 100).toFixed(1)}%</span>} />
+              <Legend {...LEGEND_PROPS} formatter={(v, e) => `${legendFormatter()(v)} — WR ${(e.payload.win_rate * 100).toFixed(1)}%`} />
               <Tooltip {...TOOLTIP_STYLE} formatter={(v, n, p) => [`${v} games · WR ${(p.payload.win_rate * 100).toFixed(1)}%`, n]} />
             </PieChart>
           </ResponsiveContainer>

@@ -16,27 +16,33 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-async function get(path) {
-  return request(path);
-}
-
-async function post(path, body, isFormData = false) {
-  const options = { method: "POST" };
-  if (isFormData) {
-    options.body = body;
-  } else {
-    options.headers = { "Content-Type": "application/json" };
-    options.body = JSON.stringify(body);
-  }
+// Expose a thin raw request helper for ad-hoc endpoints (DELETE, custom POSTs)
+export async function requestRaw(path, options = {}) {
   return request(path, options);
 }
 
-async function put(path, body) {
-  return request(path, {
+async function get(path, options = {}) {
+  return request(path, options);
+}
+
+async function post(path, body, isFormData = false, options = {}) {
+  const base = { method: "POST" };
+  if (isFormData) {
+    base.body = body;
+  } else {
+    base.headers = { "Content-Type": "application/json", ...(options.headers ?? {}) };
+    base.body = JSON.stringify(body);
+  }
+  return request(path, { ...options, ...base });
+}
+
+async function put(path, body, options = {}) {
+  const base = {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
     body: JSON.stringify(body),
-  });
+  };
+  return request(path, { ...options, ...base });
 }
 
 export const api = {
@@ -46,43 +52,44 @@ export const api = {
   model1ShapImportance: (topN = 20) => get(`/model1/shap-importance?top_n=${topN}`),
 
   model2Timeseries: (championId) => get(`/model2/timeseries/${championId}`),
-  model2ShiftEvents: ({ championId, minScore = 0, limit = 50 } = {}) => {
+  model2ShiftEvents: ({ championId, minScore = 0, limit = 50 } = {}, options = {}) => {
     const params = new URLSearchParams();
     if (championId) params.set("champion_id", championId);
     if (minScore) params.set("min_score", minScore);
     params.set("limit", limit);
-    return get(`/model2/shift-events?${params.toString()}`);
+    return get(`/model2/shift-events?${params.toString()}`, options);
   },
-  model2TopPresence: (topN = 10) => get(`/model2/top-presence?top_n=${topN}`),
-  matchesTournaments: ({ startDate, endDate, page = 1, pageSize = 20 } = {}) => {
+  model2TopPresence: (topN = 10, options = {}) => get(`/model2/top-presence?top_n=${topN}`, options),
+  matchesTournaments: ({ startDate, endDate, tournamentId, page = 1, pageSize = 20 } = {}, options = {}) => {
     const params = new URLSearchParams();
     if (startDate) params.set("start_date", startDate);
     if (endDate) params.set("end_date", endDate);
+    if (tournamentId) params.set("tournament_id", tournamentId);
     params.set("page", page);
     params.set("page_size", pageSize);
-    return get(`/matches/tournaments?${params.toString()}`);
+    return get(`/matches/tournaments?${params.toString()}`, options);
   },
-  matches: ({ tournamentId, opponentId, page = 1, pageSize = 20 } = {}) => {
+  matches: ({ tournamentId, opponentId, page = 1, pageSize = 20 } = {}, options = {}) => {
     const params = new URLSearchParams();
     if (tournamentId) params.set("tournament_id", tournamentId);
     if (opponentId) params.set("opponent_id", opponentId);
     params.set("page", page);
     params.set("page_size", pageSize);
-    return get(`/matches?${params.toString()}`);
+    return get(`/matches?${params.toString()}`, options);
   },
-  seriesDetail: (seriesId) => get(`/matches/${seriesId}`),
-  gameDetail: (gameId) => get(`/matches/game/${gameId}`),
+  seriesDetail: (seriesId, options = {}) => get(`/matches/${seriesId}`, options),
+  gameDetail: (gameId, options = {}) => get(`/matches/game/${gameId}`, options),
 
   // Stats
-  statsByPatch: () => get("/stats/winrate-by-patch"),
-  statsByTournament: () => get("/stats/winrate-by-tournament"),
-  statsBySide: () => get("/stats/winrate-by-side"),
-  playerWinrates: () => get("/stats/player-winrates"),
-  playerDetail: (playerId) => get(`/stats/player/${playerId}`),
-  headToHead: () => get("/stats/head-to-head"),
-  opponents: () => get("/stats/opponents"),
-  playerVsOpponent: (playerId, opponentId) =>
-    get(`/stats/player/${playerId}/vs-opponent?opponent_id=${opponentId}`),
+  statsByPatch: (options = {}) => get("/stats/winrate-by-patch", options),
+  statsByTournament: (options = {}) => get("/stats/winrate-by-tournament", options),
+  statsBySide: (options = {}) => get("/stats/winrate-by-side", options),
+  playerWinrates: (options = {}) => get("/stats/player-winrates", options),
+  playerDetail: (playerId, options = {}) => get(`/stats/player/${playerId}`, options),
+  headToHead: (options = {}) => get("/stats/head-to-head", options),
+  opponents: (options = {}) => get("/stats/opponents", options),
+  playerVsOpponent: (playerId, opponentId, options = {}) =>
+    get(`/stats/player/${playerId}/vs-opponent?opponent_id=${opponentId}`, options),
 
   // Model 3: Player clustering
   playerClusters: () => get("/stats/player-clusters"),

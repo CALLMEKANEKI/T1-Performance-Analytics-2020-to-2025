@@ -6,6 +6,27 @@ body {
   @apply bg-bg text-text font-body antialiased;
 }
 
+:root {
+  /* Centralized design tokens (kept in sync with tailwind.config.js) */
+  --color-bg: #0A0A0F;
+  --color-surface: #1A1A24;
+  --color-surface-hover: #22222E;
+  --color-border: #2A2A38;
+  --color-text: #F5F3EE;
+  --color-text-muted: #7C7C8A;
+  --color-accent: #E0144C;
+  --color-accent-rgb: 224,20,76;
+  --color-win: #34D399;
+  --color-loss: #E0144C;
+  --color-blue: #3B82F6;
+  --color-amber: #F59E0B;
+  --color-green: #34D399;
+  --color-purple: #A78BFA;
+  --scanline: rgba(245,243,238,0.02);
+  --shimmer-high: rgba(255,255,255,0.04);
+  --radius-md: 6px;
+}
+
 h1 {
   @apply font-display font-bold text-2xl tracking-tight text-text;
 }
@@ -23,16 +44,16 @@ label,
 /* Subtle scan-line texture */
 .hud-grid {
   background-image:
-    linear-gradient(rgba(245, 243, 238, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 243, 238, 0.02) 1px, transparent 1px);
+    linear-gradient(var(--scanline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--scanline) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0a0a0f; }
-::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a4a; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--color-border) 70%, black 30%); }
 
 /* ── Animations ─────────────────────────────────────────────── */
 
@@ -77,27 +98,22 @@ label,
 
 /* Shimmer hover effect (dùng trong StatCard) */
 .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, var(--shimmer-high) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
 
 /* Skeleton loading */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    #1a1a24 0%,
-    #22222e 50%,
-    #1a1a24 100%
-  );
+  background: linear-gradient(90deg, var(--color-surface) 0%, var(--color-surface-hover) 50%, var(--color-surface) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
+}
+
+/* Accent glow utility using centralized accent rgb */
+.shadow-accent {
+  box-shadow: 0 0 12px rgba(var(--color-accent-rgb), 0.08);
 }
 
 /* Staggered fade-in cho list items */

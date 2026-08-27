@@ -72,11 +72,13 @@ class AppConfig:
         os.getenv("STATIC_DIR", str(_BACKEND_DIR / "static"))
     )
     MODEL1_PATH: Path = _resolve_model1_path()
+    MODEL1_SHA256: str = os.getenv("MODEL1_SHA256", "").strip().lower()
 
     # Database pool
     DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
     DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))
     DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "3600"))
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
 
     # Cache startup: block until ready when true (default on in production)
     CACHE_WARMUP_BLOCKING: bool = os.getenv(
@@ -96,7 +98,7 @@ class AgentConfig(AppConfig):
     REQUEST_TIMEOUT: int = int(os.getenv("AGENT_REQUEST_TIMEOUT", "60"))
 
     # Models
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "qwen/qwen3-32b")
     CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")

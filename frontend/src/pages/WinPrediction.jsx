@@ -5,22 +5,12 @@ import {
 } from "recharts";
 import { AlertTriangle, Brain, TrendingDown, Info } from "lucide-react";
 import { api } from "../lib/api";
+import { CHART_COLORS, TOOLTIP_STYLE } from "../lib/chartUtils";
 import Panel from "../components/Panel";
 import StatCard from "../components/StatCard";
 import clsx from "clsx";
 
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    backgroundColor: "#1A1A24",
-    border: "1px solid #2A2A38",
-    borderRadius: 8,
-    fontSize: 12,
-    color: "#F5F3EE",
-  },
-  labelStyle: { color: "#F5F3EE" },
-  itemStyle: { color: "#F5F3EE" },
-  cursor: { fill: "rgba(255,255,255,0.04)" },
-};
+
 
 function formatFeatureName(name) {
   return name
@@ -139,35 +129,39 @@ export default function WinPrediction() {
           subtitle="Top 15 features đóng góp nhiều nhất vào prediction"
           loading={loading}
         >
-          <ResponsiveContainer width="100%" height={420}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A2A38" horizontal={false} />
-              <XAxis
-                type="number"
-                tick={{ fontSize: 10, fill: "#7C7C8A" }}
-                axisLine={{ stroke: "#2A2A38" }}
-                tickLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="feature"
-                tick={{ fontSize: 11, fill: "#F5F3EE" }}
-                width={155}
-                axisLine={{ stroke: "#2A2A38" }}
-                tickLine={false}
-              />
-              <Tooltip {...TOOLTIP_STYLE} />
-              <Bar dataKey="importance" radius={[0, 4, 4, 0]} name="SHAP importance">
-                {chartData.map((_, i) => (
-                  <Cell
-                    key={i}
-                    fill="#E0144C"
-                    fillOpacity={0.25 + (i / (chartData.length || 1)) * 0.75}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {!loading && chartData.length === 0 ? (
+            <div className="py-12 text-center text-textMuted text-sm">No SHAP importance data available.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={420}>
+              <BarChart data={chartData} layout="vertical" margin={{ left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.border} horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10, fill: CHART_COLORS.textMuted }}
+                  axisLine={{ stroke: CHART_COLORS.border }}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="feature"
+                  tick={{ fontSize: 11, fill: CHART_COLORS.text }}
+                  width={155}
+                  axisLine={{ stroke: CHART_COLORS.border }}
+                  tickLine={false}
+                />
+                <Tooltip {...TOOLTIP_STYLE} />
+                <Bar dataKey="importance" radius={[0, 4, 4, 0]} name="SHAP importance">
+                  {chartData.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={CHART_COLORS.accent}
+                      fillOpacity={0.25 + (i / (chartData.length || 1)) * 0.75}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Panel>
 
         {/* Phân tích */}

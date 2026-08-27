@@ -4,21 +4,16 @@ import {
   Edit2, Trash2, Plus, Download, Lock, AlertTriangle
 } from "lucide-react";
 import clsx from "clsx";
-import { api } from "../lib/api";
+import { api, BASE_URL, requestRaw } from "../lib/api";
 import Panel from "../components/Panel";
 
 const TABS = ["Import", "Champions", "Players", "Teams", "Tournaments"];
 const PAGE_SIZE = 30;
-const BASE_URL = "http://localhost:8000/api";
-
 // ── LOCK CONFIG ───────────────────────────────────────────────
 const LOCKED = true;
 const LOCK_MSG = "Chức năng này đang bị khoá trong môi trường demo. Liên hệ admin để được cấp quyền.";
 
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, opts);
-  return res.json();
-}
+// Note: use `requestRaw` from `lib/api` for raw DELETE/POST endpoints so errors are handled uniformly
 
 // ── Lock Modal ────────────────────────────────────────────────
 function LockedModal({ onClose }) {
@@ -86,12 +81,25 @@ function EditCell({ value, onSave, onLocked }) {
 function AddModal({ fields, onSave, onClose }) {
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handle = async () => {
+    setError(null);
+    // validate required fields
+    const missing = (fields || []).filter((f) => f.required && !form[f.key]);
+    if (missing.length) {
+      setError(`Vui lòng điền trường: ${missing.map((m) => m.label).join(", ")}`);
+      return;
+    }
     setLoading(true);
-    await onSave(form);
-    setLoading(false);
-    onClose();
+    try {
+      await onSave(form);
+      onClose();
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -114,11 +122,12 @@ function AddModal({ fields, onSave, onClose }) {
             </div>
           ))}
         </div>
+        {error && <div className="text-sm text-loss bg-loss/10 border border-loss/30 rounded-xl px-3 py-2 mb-3">{error}</div>}
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-sm text-textMuted hover:text-text transition-colors">Hủy</button>
           <button
             onClick={handle}
-            disabled={loading}
+            disabled={loading || Boolean((fields || []).find((f) => f.required && !form[f.key]))}
             className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/80 transition-colors disabled:opacity-50"
           >
             {loading ? "Đang lưu..." : "Lưu"}
@@ -275,6 +284,7 @@ function MasterTable({ fetchFn, columns, updateFn, deleteFn, createFn, createFie
     setLoading(true);
     fetchFn({ search: s, page: p, pageSize: PAGE_SIZE })
       .then((res) => setData(Array.isArray(res) ? res : (res.data ?? [])))
+      .catch((e) => setErrorMsg(e?.message || String(e)))
       .finally(() => setLoading(false));
   };
 
@@ -441,8 +451,8 @@ const TAB_CONFIGS = {
   Champions: {
     fetchFn: (p) => api.admin.champions(p),
     updateFn: (id, body) => api.admin.updateChampion(id, body),
-    deleteFn: (id) => apiFetch(`/admin/champions/${id}`, { method: "DELETE" }),
-    createFn: (body) => apiFetch("/admin/champions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    deleteFn: (id) => requestRaw(`/admin/champions/${id}`, { method: "DELETE" }),
+    createFn: (body) => requestRaw("/admin/champions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     nameKey: "name",
     createFields: [
       { key: "name", label: "Tên champion", required: true },
@@ -457,8 +467,8 @@ const TAB_CONFIGS = {
   Players: {
     fetchFn: (p) => api.admin.players(p),
     updateFn: (id, body) => api.admin.updatePlayer(id, body),
-    deleteFn: (id) => apiFetch(`/admin/players/${id}`, { method: "DELETE" }),
-    createFn: (body) => apiFetch("/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    deleteFn: (id) => requestRaw(`/admin/players/${id}`, { method: "DELETE" }),
+    createFn: (body) => requestRaw("/admin/players", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     nameKey: "ingame_name",
     createFields: [
       { key: "ingame_name", label: "Nickname", required: true },
@@ -478,8 +488,8 @@ const TAB_CONFIGS = {
   },
   Teams: {
     fetchFn: (p) => api.admin.teams(p),
-    deleteFn: (id) => apiFetch(`/admin/teams/${id}`, { method: "DELETE" }),
-    createFn: (body) => apiFetch("/admin/teams", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    deleteFn: (id) => requestRaw(`/admin/teams/${id}`, { method: "DELETE" }),
+    createFn: (body) => requestRaw("/admin/teams", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     nameKey: "name",
     createFields: [
       { key: "name", label: "Tên team", required: true },
@@ -493,8 +503,8 @@ const TAB_CONFIGS = {
   },
   Tournaments: {
     fetchFn: (p) => api.admin.tournaments(p),
-    deleteFn: (id) => apiFetch(`/admin/tournaments/${id}`, { method: "DELETE" }),
-    createFn: (body) => apiFetch("/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, year: Number(body.year) }) }),
+    deleteFn: (id) => requestRaw(`/admin/tournaments/${id}`, { method: "DELETE" }),
+    createFn: (body) => requestRaw("/admin/tournaments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, year: Number(body.year) }) }),
     nameKey: "name",
     createFields: [
       { key: "name", label: "Tên giải đấu", required: true },
