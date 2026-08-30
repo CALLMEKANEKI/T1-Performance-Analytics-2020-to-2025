@@ -61,7 +61,11 @@ class TextToSQLAgent:
         if not cleaned:
             return False, "Query rỗng sau khi loại comments/strings."
 
-        # Disallow multiple statements (semicolons outside strings/comments)
+        # Allow a single trailing semicolon, but reject any additional semicolon
+        # that indicates a multi-statement query.
+        if cleaned.endswith(";"):
+            cleaned = cleaned[:-1].rstrip()
+
         if ";" in cleaned:
             return False, "Chỉ cho phép một câu lệnh SELECT (không cho phép ';')."
 

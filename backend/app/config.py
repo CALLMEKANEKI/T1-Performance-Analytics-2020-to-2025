@@ -3,9 +3,18 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = _BACKEND_DIR.parent
+load_dotenv(_PROJECT_ROOT / ".env")
+
+
+def _env_value(name: str, default: str = "") -> str:
+    value = os.getenv(name, default)
+    return value.strip() if isinstance(value, str) else str(value)
+
+
+def _env_bool(name: str, default: str = "false") -> bool:
+    return _env_value(name, default).lower() == "true"
 
 
 def normalize_database_url(raw: str | None) -> str:
@@ -92,27 +101,27 @@ class AppConfig:
 
 class AgentConfig(AppConfig):
     # Provider chính: 'claude', 'openai', 'groq', 'openrouter', 'ollama'
-    PROVIDER: str = os.getenv("AGENT_PROVIDER", "groq")
-    AGENT_ENABLED: bool = os.getenv("AGENT_ENABLED", "true").lower() == "true"
-    RATE_LIMIT_PER_MINUTE: int = int(os.getenv("AGENT_RATE_LIMIT", "10"))
-    REQUEST_TIMEOUT: int = int(os.getenv("AGENT_REQUEST_TIMEOUT", "60"))
+    PROVIDER: str = _env_value("AGENT_PROVIDER").lower()
+    AGENT_ENABLED: bool = _env_bool("AGENT_ENABLED", "true")
+    RATE_LIMIT_PER_MINUTE: int = int(_env_value("AGENT_RATE_LIMIT", "10"))
+    REQUEST_TIMEOUT: int = int(_env_value("AGENT_REQUEST_TIMEOUT", "60"))
 
-    # Models
-    GROQ_MODEL: str = os.getenv("GROQ_MODEL", "qwen/qwen3-32b")
-    CLAUDE_MODEL: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    # Models: read from environment only; no hardcoded model names in source
+    GROQ_MODEL: str = _env_value("GROQ_MODEL")
+    CLAUDE_MODEL: str = _env_value("CLAUDE_MODEL")
+    OPENAI_MODEL: str = _env_value("OPENAI_MODEL")
+    OPENROUTER_MODEL: str = _env_value("OPENROUTER_MODEL")
+    OLLAMA_MODEL: str = _env_value("OLLAMA_MODEL")
+    OLLAMA_BASE_URL: str = _env_value("OLLAMA_BASE_URL", "http://localhost:11434")
+    OPENROUTER_BASE_URL: str = _env_value("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
     # API Keys
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    GROQ_API_KEY: str = _env_value("GROQ_API_KEY")
+    ANTHROPIC_API_KEY: str = _env_value("ANTHROPIC_API_KEY")
+    OPENAI_API_KEY: str = _env_value("OPENAI_API_KEY")
+    OPENROUTER_API_KEY: str = _env_value("OPENROUTER_API_KEY")
 
     # Agent settings
-    MAX_TOKENS: int = int(os.getenv("AGENT_MAX_TOKENS", "500"))
-    TEMPERATURE: float = float(os.getenv("AGENT_TEMPERATURE", "0.1"))
-    RESULT_LIMIT: int = int(os.getenv("AGENT_RESULT_LIMIT", "10"))
+    MAX_TOKENS: int = int(_env_value("AGENT_MAX_TOKENS", "500"))
+    TEMPERATURE: float = float(_env_value("AGENT_TEMPERATURE", "0.1"))
+    RESULT_LIMIT: int = int(_env_value("AGENT_RESULT_LIMIT", "10"))
