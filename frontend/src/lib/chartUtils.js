@@ -17,9 +17,12 @@ export const CHART_COLORS = {
   text: "var(--color-text)",
   textMuted: "var(--color-text-muted)",
   win: "var(--color-win)",
+  loss: "var(--color-loss)",
   blue: "var(--color-blue)",
+  redSide: "var(--color-red-side)",
   amber: "var(--color-amber)",
   purple: "var(--color-purple)",
+  gray: "#64748b",
 };
 
 export const LEGEND_PROPS = {
@@ -40,6 +43,4 @@ export function axisProps(fontSize = 10) {
   };
 }
 
-export default {
-  TOOLTIP_STYLE,
-};
+export default { TOOLTIP_STYLE };

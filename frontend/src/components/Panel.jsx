@@ -12,30 +12,22 @@ export default function Panel({
   const variantStyles = {
     default: "bg-surface border border-border",
     accent: "bg-surface border border-border border-l-2 border-l-accent shadow-accent",
-    glass: "backdrop-blur-sm bg-surface/80 border border-border/50",
+    glass: "bg-surface/80 border border-border/70 backdrop-blur-sm",
   };
 
   return (
-    <div
+    <section
       className={clsx(
-        "rounded-xl transition-colors duration-200 hover:border-border/80",
-        variantStyles[variant],
+        "min-w-0 overflow-hidden rounded-xl transition-colors duration-200 hover:border-border/90",
+        variantStyles[variant] || variantStyles.default,
         className
       )}
     >
       {(title || action) && (
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div>
-            {title && (
-              <h3 className="font-display font-semibold text-sm tracking-wide text-text">
-                {title}
-              </h3>
-            )}
-            {subtitle && (
-              <p className="text-xs uppercase tracking-widest text-textMuted mt-0.5">
-                {subtitle}
-              </p>
-            )}
+        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            {title && <h3 className="font-display text-sm font-semibold tracking-wide text-text">{title}</h3>}
+            {subtitle && <p className="mt-1 text-xs text-textMuted">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -43,13 +35,13 @@ export default function Panel({
       <div className="p-5">
         {loading ? <PanelSkeleton /> : children}
       </div>
-    </div>
+    </section>
   );
 }
 
 function PanelSkeleton() {
   return (
-    <div className="space-y-3 animate-pulse">
+    <div className="animate-pulse space-y-3" aria-label="Loading">
       <div className="skeleton h-4 w-3/4" />
       <div className="skeleton h-4 w-1/2" />
       <div className="skeleton h-4 w-5/6" />

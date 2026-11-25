@@ -1,0 +1,20 @@
+:root {
+  --color-bg: #05050a;
+  --color-surface: #1e1e2d;
+  --color-surface-alt: #151521;
+  --color-surface-hover: #252538;
+  --color-border: #2b2b40;
+  --color-text: #ffffff;
+  --color-text-muted: #a1a5b7;
+  --color-accent: #e3002b;
+  --color-accent-rgb: 227, 0, 43;
+  --color-win: #22c55e;
+  --color-loss: #b42318;
+  --color-blue: #3b82f6;
+  --color-red-side: #e3002b;
+  --color-amber: #f59e0b;
+  --color-purple: #a78bfa;
+  --scanline: rgba(255, 255, 255, 0.015);
+  --shimmer-high: rgba(255, 255, 255, 0.04);
+  --radius-md: 8px;
+}

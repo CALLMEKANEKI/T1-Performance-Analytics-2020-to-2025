@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
+import Navbar from "./components/Navbar";
 import Overview from "./pages/Overview";
 import Players from "./pages/Players";
 import MatchHistory from "./pages/MatchHistory";
@@ -11,9 +11,9 @@ import Agent from "./pages/Agent";
 
 export default function App() {
   return (
-    <div className="flex min-h-screen bg-bg">
-      <Sidebar />
-      <main className="flex-1 px-8 py-8 max-w-[1400px] space-y-6">
+    <div className="min-h-screen bg-bg">
+      <Navbar />
+      <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/players" element={<Players />} />
@@ -21,11 +21,10 @@ export default function App() {
           <Route path="/meta-shifts" element={<MetaShifts />} />
           <Route path="/win-prediction" element={<WinPrediction />} />
           <Route path="/synergy" element={<Synergy />} />
-          <Route path="/admin" element={<Admin />} />
           <Route path="/agent" element={<Agent />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
     </div>
   );
 }
-
